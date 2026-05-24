@@ -1,0 +1,52 @@
+map_id,map_path,time_index,group,alias,feature,match_type,r
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,attention,attention,attention,exact,0.1526435669801552
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,attention,attentional,attentional,exact,0.175192452781412
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,attention,salience,salience,exact,-0.24907622401054635
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,attention,orienting,orienting,exact,0.09918800611224107
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,attention,target,target,exact,0.18964121273051873
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,attention,visual attention,visual attention,exact,0.19248226374304644
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,reward,reward,reward,exact,-0.2819392711261173
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,reward,value,value,exact,-0.24003847561801245
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,reward,incentive,incentive,exact,-0.1740992280797044
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,reward,motivation,motivation,exact,-0.17102788465459687
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,reward,preference,preference,exact,0.188510184915548
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,reward,reinforcement,reinforcement,exact,-0.16333440659821855
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,memory,memory,memory,exact,-0.09337485529682493
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,memory,encoding,encoding,exact,0.08072108952609172
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,memory,recall,recall,exact,-0.19194925268992444
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,memory,recognition,recognition,exact,0.22477190362319302
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,memory,episodic,episodic,exact,-0.20391872506320952
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,memory,retrieval,retrieval,exact,-0.09999457826124401
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,memory,familiarity,familiarity,exact,0.06413492159479664
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,emotion,emotion,emotion regulation,substring,-0.2665207933528977
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,emotion,emotional,emotional,exact,-0.19959602193414752
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,emotion,affective,affective,exact,-0.24214182467418766
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,emotion,affect,affect,exact,-0.09385916349856649
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,emotion,arousal,arousal,exact,-0.17736020035884886
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,emotion,valence,valence,exact,-0.13523666309860505
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,emotion,pleasant,pleasant,exact,-0.07982084257436602
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,emotion,unpleasant,unpleasant,exact,-0.12636177870148532
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,social,social,social,exact,-0.1646445674640523
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,social,mentalizing,mentalizing,exact,-0.12872896668908154
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,social,self,self report,substring,-0.2253916998520047
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,social,self referential,self referential,exact,-0.27800569658432245
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,social,person,person,exact,-0.11066180328198734
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,social,people,people,exact,-0.06476912507964114
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,social,face,face,exact,0.32674291665252536
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,social,faces,faces,exact,0.22995788087184227
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,aversion,fear,fear,exact,-0.15408281346992608
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,aversion,anxiety,anxiety,exact,-0.2943861261219085
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,aversion,pain,pain,exact,-0.25582898731016507
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,aversion,disgust,disgust,exact,-0.017610707324399916
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,aversion,negative,negative,exact,-0.35164160134887035
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,aversion,aversive,aversive,exact,-0.2143729075198674
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,language,language,language,exact,0.3050958725391972
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,language,speech,speech,exact,0.2880808970465155
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,language,semantic,semantic,exact,0.1486868054166742
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,language,comprehension,comprehension,exact,0.15200409100247286
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,language,sentence,sentence,exact,0.14396210360096684
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,action,action,action,exact,0.18384039432421231
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,action,motor,motor,exact,0.10808438730423706
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,action,movement,movement,exact,0.08232407545099636
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,action,hand,hand,exact,0.09602893298984565
+tribe_activity_fsaverage5,/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy,0,action,execution,execution,exact,0.132907488302535

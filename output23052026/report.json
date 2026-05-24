@@ -1,0 +1,83 @@
+{
+  "created_at_utc": "2026-05-23T04:48:34.316705+00:00",
+  "backend": "SurfaceFsaverageDecoderBackend",
+  "reference_version": "marketing_surface_v1",
+  "reference_features": [
+    "attention",
+    "attentional",
+    "salience",
+    "orienting",
+    "target",
+    "visual attention",
+    "reward",
+    "value",
+    "incentive",
+    "motivation",
+    "preference",
+    "reinforcement",
+    "memory",
+    "encoding",
+    "recall",
+    "recognition",
+    "episodic",
+    "retrieval",
+    "familiarity",
+    "emotion regulation",
+    "emotional",
+    "affective",
+    "affect",
+    "arousal",
+    "valence",
+    "pleasant",
+    "unpleasant",
+    "social",
+    "mentalizing",
+    "self report",
+    "self referential",
+    "person",
+    "people",
+    "face",
+    "faces",
+    "fear",
+    "anxiety",
+    "pain",
+    "disgust",
+    "negative",
+    "aversive",
+    "language",
+    "speech",
+    "semantic",
+    "comprehension",
+    "sentence",
+    "action",
+    "motor",
+    "movement",
+    "hand",
+    "execution"
+  ],
+  "reference_features_hash": "9b74d164469d70bf",
+  "space": "fsaverage5",
+  "runtime_input_contract": {
+    "accepted": [
+      ".npy shape=(20484,)",
+      ".npy shape=(T, 20484)"
+    ],
+    "rejected": [
+      "NIfTI runtime input",
+      "raw TRIBE embeddings",
+      "video/audio/text"
+    ]
+  },
+  "inputs": [
+    {
+      "path": "/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy",
+      "shape": [
+        1,
+        20484
+      ],
+      "hemisphere_order_input": "left_then_right",
+      "hemisphere_order_decoded": "left_then_right"
+    }
+  ],
+  "proxy_interpretation_warning": "Scores are proxy correlations with Neurosynth-derived reference maps, not direct predictions of emotions, preferences, or behavior."
+}
