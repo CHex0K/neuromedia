@@ -777,7 +777,11 @@ def load_tribe_surface(path: Path, hemisphere_order: HemisphereOrder) -> np.ndar
         raise ValueError(f"TRIBE input is all zero: {path}")
     zero_rows = np.flatnonzero(np.all(arr == 0, axis=1))
     if zero_rows.size:
-        raise ValueError(f"TRIBE input has all-zero timepoints {zero_rows.tolist()}: {path}")
+        LOGGER.warning(
+            "TRIBE input has all-zero timepoints %s; they will decode to neutral scores: %s",
+            zero_rows.tolist(),
+            path,
+        )
 
     if hemisphere_order == "right_then_left":
         left = arr[:, FSAVERAGE5_VERTICES_PER_HEMISPHERE:]

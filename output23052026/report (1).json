@@ -1,5 +1,5 @@
 {
-  "created_at_utc": "2026-05-23T04:48:34.316705+00:00",
+  "created_at_utc": "2026-05-24T09:19:44.326552+00:00",
   "backend": "SurfaceFsaverageDecoderBackend",
   "reference_version": "marketing_surface_v1",
   "reference_features": [
@@ -69,6 +69,15 @@
     ]
   },
   "inputs": [
+    {
+      "path": "/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_predictions_fsaverage5.npy",
+      "shape": [
+        15,
+        20484
+      ],
+      "hemisphere_order_input": "left_then_right",
+      "hemisphere_order_decoded": "left_then_right"
+    },
     {
       "path": "/content/drive/MyDrive/neuromedia/outputs/tribe_fsaverage5/4590080h/tribe_activity_fsaverage5.npy",
       "shape": [
