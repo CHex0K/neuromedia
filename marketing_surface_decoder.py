@@ -19,6 +19,7 @@ import json
 import logging
 import re
 import shutil
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -43,6 +44,8 @@ DEFAULT_FREQUENCY_THRESHOLD = 0.05
 REFERENCE_VERSION = "marketing_surface_v1"
 HemisphereOrder = Literal["left_then_right", "right_then_left"]
 HTTP_TIMEOUT_SECONDS = 120
+HTTP_RETRY_ATTEMPTS = 5
+HTTP_RETRY_BASE_SLEEP_SECONDS = 3.0
 HTTP_USER_AGENT = "neuromedia-marketing-surface-decoder/1.0"
 NEUROSYNTH_BASE_URL = "https://neurosynth.org"
 NEUROSYNTH_TERM_NAMES_URL = f"{NEUROSYNTH_BASE_URL}/api/analyses/term_names"
@@ -122,6 +125,60 @@ MARKETING_V1: dict[str, list[str]] = {
         "execution",
     ],
 }
+
+NEUROSYNTH_MARKETING_FALLBACK_TERMS = [
+    "attention",
+    "attentional",
+    "salience",
+    "orienting",
+    "target",
+    "visual attention",
+    "reward",
+    "value",
+    "incentive",
+    "motivation",
+    "preference",
+    "reinforcement",
+    "memory",
+    "encoding",
+    "recall",
+    "recognition",
+    "episodic",
+    "retrieval",
+    "familiarity",
+    "emotion regulation",
+    "emotional",
+    "affective",
+    "affect",
+    "arousal",
+    "valence",
+    "pleasant",
+    "unpleasant",
+    "social",
+    "mentalizing",
+    "self report",
+    "self referential",
+    "person",
+    "people",
+    "face",
+    "faces",
+    "fear",
+    "anxiety",
+    "pain",
+    "disgust",
+    "negative",
+    "aversive",
+    "language",
+    "speech",
+    "semantic",
+    "comprehension",
+    "sentence",
+    "action",
+    "motor",
+    "movement",
+    "hand",
+    "execution",
+]
 
 
 @dataclass(frozen=True)
@@ -356,16 +413,45 @@ def get_annotation_features(studyset) -> list[str]:
 
 
 def http_get_bytes(url: str) -> bytes:
-    """Download bytes with a stable user agent and clear network errors."""
+    """Download bytes with retries and clear network errors."""
 
     request = urllib.request.Request(url, headers={"User-Agent": HTTP_USER_AGENT})
-    try:
-        with urllib.request.urlopen(request, timeout=HTTP_TIMEOUT_SECONDS) as response:
-            return response.read()
-    except urllib.error.HTTPError as exc:
-        raise RuntimeError(f"HTTP {exc.code} while downloading {url}") from exc
-    except urllib.error.URLError as exc:
-        raise RuntimeError(f"Network error while downloading {url}: {exc}") from exc
+    last_error: Exception | None = None
+    for attempt in range(1, HTTP_RETRY_ATTEMPTS + 1):
+        try:
+            with urllib.request.urlopen(request, timeout=HTTP_TIMEOUT_SECONDS) as response:
+                return response.read()
+        except urllib.error.HTTPError as exc:
+            last_error = exc
+            retryable = exc.code in {429, 500, 502, 503, 504}
+            if not retryable or attempt == HTTP_RETRY_ATTEMPTS:
+                raise RuntimeError(f"HTTP {exc.code} while downloading {url}") from exc
+            sleep_seconds = HTTP_RETRY_BASE_SLEEP_SECONDS * attempt
+            LOGGER.warning(
+                "HTTP %s while downloading %s; retry %d/%d in %.1fs.",
+                exc.code,
+                url,
+                attempt,
+                HTTP_RETRY_ATTEMPTS,
+                sleep_seconds,
+            )
+            time.sleep(sleep_seconds)
+        except urllib.error.URLError as exc:
+            last_error = exc
+            if attempt == HTTP_RETRY_ATTEMPTS:
+                raise RuntimeError(f"Network error while downloading {url}: {exc}") from exc
+            sleep_seconds = HTTP_RETRY_BASE_SLEEP_SECONDS * attempt
+            LOGGER.warning(
+                "Network error while downloading %s; retry %d/%d in %.1fs: %s",
+                url,
+                attempt,
+                HTTP_RETRY_ATTEMPTS,
+                sleep_seconds,
+                exc,
+            )
+            time.sleep(sleep_seconds)
+
+    raise RuntimeError(f"Could not download {url}: {last_error}")
 
 
 def read_json_cache(path: Path, default: Any) -> Any:
@@ -393,8 +479,16 @@ def load_neurosynth_term_names(cache_dir: Path) -> list[str]:
     payload = read_json_cache(cache_path, default=None)
     if payload is None:
         LOGGER.info("Fetching Neurosynth term names: %s", NEUROSYNTH_TERM_NAMES_URL)
-        payload = json.loads(http_get_bytes(NEUROSYNTH_TERM_NAMES_URL).decode("utf-8"))
-        write_json_cache(cache_path, payload)
+        try:
+            payload = json.loads(http_get_bytes(NEUROSYNTH_TERM_NAMES_URL).decode("utf-8"))
+            write_json_cache(cache_path, payload)
+        except RuntimeError as exc:
+            LOGGER.warning(
+                "Could not fetch Neurosynth term_names API; using embedded marketing "
+                "fallback terms. Cause: %s",
+                exc,
+            )
+            return list(NEUROSYNTH_MARKETING_FALLBACK_TERMS)
 
     terms = payload.get("data", payload) if isinstance(payload, dict) else payload
     if not isinstance(terms, list) or not terms:
@@ -447,15 +541,7 @@ def download_neurosynth_association_map(
 
     LOGGER.info("Downloading Neurosynth map for '%s': %s", feature, url)
     tmp_path = target.with_name(f"{target.name}.tmp")
-    request = urllib.request.Request(url, headers={"User-Agent": HTTP_USER_AGENT})
-    try:
-        with urllib.request.urlopen(request, timeout=HTTP_TIMEOUT_SECONDS) as response:
-            with tmp_path.open("wb") as file_obj:
-                shutil.copyfileobj(response, file_obj)
-    except urllib.error.HTTPError as exc:
-        raise RuntimeError(f"HTTP {exc.code} while downloading {url}") from exc
-    except urllib.error.URLError as exc:
-        raise RuntimeError(f"Network error while downloading {url}: {exc}") from exc
+    tmp_path.write_bytes(http_get_bytes(url))
 
     tmp_path.replace(target)
     return target, analysis_id, url

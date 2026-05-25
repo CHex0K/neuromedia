@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import pickle
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Literal
@@ -117,6 +118,7 @@ def run_tribe_v2(
     LOGGER.info("Running TRIBE v2 inference")
     predictions, segments = model.predict(events=events, verbose=verbose)
     predictions = np.asarray(predictions, dtype=np.float32)
+    segments = list(segments)
     validate_tribe_predictions(predictions)
 
     prediction_path = output_dir / "tribe_predictions_fsaverage5.npy"
@@ -124,6 +126,7 @@ def run_tribe_v2(
 
     segments_path = output_dir / "tribe_segments.tsv"
     write_segments(segments, segments_path)
+    write_segments_pickle(segments, output_dir / "tribe_segments.pkl")
 
     activity = aggregate_predictions(predictions, aggregation)
     activity_path = output_dir / "tribe_activity_fsaverage5.npy"
@@ -196,6 +199,16 @@ def write_segments(segments: Iterable[object], path: Path) -> None:
         )
 
     pd.DataFrame(rows).to_csv(path, sep="\t", index=False, encoding="utf-8")
+
+
+def write_segments_pickle(segments: Iterable[object], path: Path) -> None:
+    """Persist full TRIBE segment objects for official plotting."""
+
+    try:
+        with path.open("wb") as handle:
+            pickle.dump(list(segments), handle, protocol=pickle.HIGHEST_PROTOCOL)
+    except Exception as exc:
+        LOGGER.warning("Could not save full TRIBE segments to %s: %s", path, exc)
 
 
 def aggregate_predictions(predictions: np.ndarray, method: Aggregation) -> np.ndarray:
