@@ -53,6 +53,26 @@ GROUP_ALIASES = {
     "language_narrative": "language",
     "action_embodiment": "action",
 }
+GROUP_DESCRIPTIONS = {
+    "attention": "Прокси для внимания, выделения значимого стимула и ориентации на цель.",
+    "reward": "Прокси для ценности, мотивации, предпочтения и ожидаемого вознаграждения.",
+    "memory": "Прокси для кодирования, узнавания и извлечения информации из памяти.",
+    "emotion": "Прокси для аффекта, эмоциональной окраски, возбуждения и валентности.",
+    "social": "Прокси для социального восприятия, self/other обработки, лиц и людей.",
+    "aversion": "Прокси для угрозы, страха, боли, отвращения и негативной оценки.",
+    "language": "Прокси для речи, семантики, понимания и нарративной обработки.",
+    "action": "Прокси для действия, движения, моторики, жестов и embodied response.",
+}
+MARKETING_TERMS = {
+    "attention": ["attention", "attentional", "salience", "orienting", "target", "visual attention"],
+    "reward": ["reward", "value", "valuation", "incentive", "motivation", "preference", "reinforcement"],
+    "memory": ["memory", "encoding", "recall", "recognition", "episodic", "retrieval", "familiarity"],
+    "emotion": ["emotion", "emotional", "affective", "affect", "arousal", "valence", "pleasant", "unpleasant"],
+    "social": ["social", "mentalizing", "self", "self referential", "person", "people", "face", "faces", "theory of mind"],
+    "aversion": ["fear", "threat", "anxiety", "pain", "disgust", "negative", "aversive"],
+    "language": ["language", "speech", "semantic", "comprehension", "narrative", "story", "sentence"],
+    "action": ["action", "motor", "movement", "hand", "gesture", "execution"],
+}
 VIDEO_EXTENSIONS = {".mp4", ".avi", ".mkv", ".mov", ".webm"}
 AUDIO_EXTENSIONS = {".wav", ".mp3", ".flac", ".ogg", ".m4a", ".aac", ".mp4", ".avi", ".mkv", ".mov", ".webm"}
 TEXT_COLUMN_CANDIDATES = [
@@ -610,8 +630,8 @@ def build_segment_rows(
             f"<td>{video_frame}</td>"
             f"<td>{audio_waveform}</td>"
             f"<td class=\"stimulus-text\">{escape(transcript_text)}</td>"
-            f"<td>{top_groups_text(score_rows, top_groups)}</td>"
-            f"<td>{top_terms_text(terms, SEGMENT_MAP_ID, index, top_terms)}</td>"
+            f"<td class=\"top-groups-cell\">{top_groups_text(score_rows, top_groups)}</td>"
+            f"<td class=\"top-terms-cell\">{top_terms_text(terms, SEGMENT_MAP_ID, index, top_terms)}</td>"
             f"{scores_cells(score_rows)}"
             "</tr>"
         )
@@ -647,8 +667,8 @@ def build_aggregate_rows(
             "<tr>"
             f"<td>{escape(label)}</td>"
             f"<td>{image_cell}</td>"
-            f"<td>{top_groups_text(score_rows, top_groups)}</td>"
-            f"<td>{top_terms_text(terms, map_id, 'aggregate', top_terms)}</td>"
+            f"<td class=\"top-groups-cell\">{top_groups_text(score_rows, top_groups)}</td>"
+            f"<td class=\"top-terms-cell\">{top_terms_text(terms, map_id, 'aggregate', top_terms)}</td>"
             f"{scores_cells(score_rows)}"
             "</tr>"
         )
@@ -672,11 +692,70 @@ def table_header(include_time: bool, include_stimuli: bool = False) -> str:
         f"{prefix}"
         "<th>brain map</th>"
         f"{stimuli_headers}"
-        "<th>top groups</th>"
-        "<th>top terms</th>"
+        "<th class=\"top-groups-cell\">top groups</th>"
+        "<th class=\"top-terms-cell\">top terms</th>"
         f"{group_headers}"
         "</tr>"
     )
+
+
+def build_method_notes() -> str:
+    """Build a compact explanation of how decoder scores should be read."""
+
+    return """
+  <div class="note">
+    <b>How to read activation scores:</b>
+    <ul>
+      <li><b>top terms</b>: individual Neurosynth reference terms ranked by Pearson correlation <code>r</code> with the TRIBE fsaverage5 surface map for that segment.</li>
+      <li><b>top groups</b>: marketing groups ranked by <code>score_0_100 = 50 + 50 * mean_r</code>, where <code>mean_r</code> is the mean correlation across resolved terms in the group.</li>
+      <li><b>50</b> is approximately neutral. Values above 50 mean stronger positive similarity to that reference map family. Values below 50 mean negative similarity.</li>
+      <li>This is a proxy interpretation of model-predicted brain maps, not direct measurement of a viewer's brain and not object detection in the video frame.</li>
+    </ul>
+  </div>
+"""
+
+
+def build_group_dictionary_rows() -> str:
+    """Build rows explaining configured marketing groups."""
+
+    rows: list[str] = []
+    for group in GROUP_ORDER:
+        rows.append(
+            "<tr>"
+            f"<td><b>{escape(GROUP_LABELS[group])}</b><br><span class=\"small\">{escape(group)}</span></td>"
+            f"<td>{escape(GROUP_DESCRIPTIONS[group])}</td>"
+            f"<td>{escape(', '.join(MARKETING_TERMS[group]))}</td>"
+            "<td>Среднее значение корреляций term-карт внутри группы, переведённое в шкалу 0-100.</td>"
+            "</tr>"
+        )
+    return "\n".join(rows)
+
+
+def build_term_dictionary_rows(terms: pd.DataFrame) -> str:
+    """Build rows explaining resolved terms present in decoder outputs."""
+
+    if terms.empty:
+        return ""
+
+    unique_terms = (
+        terms[["feature", "group"]]
+        .dropna()
+        .drop_duplicates()
+        .sort_values(["group", "feature"])
+    )
+    rows: list[str] = []
+    for row in unique_terms.itertuples(index=False):
+        group = normalize_group(row.group)
+        rows.append(
+            "<tr>"
+            f"<td>{escape(row.feature)}</td>"
+            f"<td>{escape(GROUP_LABELS.get(group, group))}</td>"
+            "<td>Корреляция <code>r</code> показывает, насколько TRIBE-карта сегмента похожа "
+            "на Neurosynth-карту этого термина. Это не означает буквальное наличие объекта "
+            "или эмоции в кадре.</td>"
+            "</tr>"
+        )
+    return "\n".join(rows)
 
 
 def build_html(
@@ -721,6 +800,9 @@ def build_html(
     )
     shape = f"{predictions.shape[0]} x {predictions.shape[1]}"
     input_media_text = str(input_media) if input_media is not None else ""
+    method_notes = build_method_notes()
+    group_dictionary_rows = build_group_dictionary_rows()
+    term_dictionary_rows = build_term_dictionary_rows(terms)
 
     return f"""<!doctype html>
 <html lang="ru">
@@ -786,6 +868,26 @@ def build_html(
       max-width: 320px;
       white-space: normal;
     }}
+    .top-groups-cell {{
+      min-width: 240px;
+      max-width: 320px;
+      width: 18%;
+      white-space: normal;
+    }}
+    .top-terms-cell {{
+      min-width: 360px;
+      max-width: 520px;
+      width: 28%;
+      white-space: normal;
+    }}
+    .dictionary-table td:nth-child(1) {{
+      width: 220px;
+    }}
+    code {{
+      background: #eef2f7;
+      border-radius: 3px;
+      padding: 1px 4px;
+    }}
     .small {{ font-size: 11px; color: #57606a; }}
   </style>
 </head>
@@ -814,6 +916,25 @@ def build_html(
   <table>
     <thead>{table_header(include_time=True, include_stimuli=True)}</thead>
     <tbody>{segment_rows}</tbody>
+  </table>
+
+  <h2>Decoder dictionary and score interpretation</h2>
+  {method_notes}
+
+  <h3>Marketing group descriptions</h3>
+  <table class="dictionary-table">
+    <thead>
+      <tr><th>group</th><th>meaning</th><th>reference terms</th><th>score calculation</th></tr>
+    </thead>
+    <tbody>{group_dictionary_rows}</tbody>
+  </table>
+
+  <h3>Resolved term descriptions</h3>
+  <table class="dictionary-table">
+    <thead>
+      <tr><th>term</th><th>group</th><th>how to read it</th></tr>
+    </thead>
+    <tbody>{term_dictionary_rows}</tbody>
   </table>
 </body>
 </html>
