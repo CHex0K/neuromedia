@@ -29,6 +29,13 @@ Aggregation = Literal["mean", "median", "max_abs"]
 
 FSAVERAGE5_VERTICES_PER_HEMISPHERE = 10242
 FSAVERAGE5_TOTAL_VERTICES = FSAVERAGE5_VERTICES_PER_HEMISPHERE * 2
+TRIBE_INFERENCE_CONFIG_UPDATE = {
+    # The pretrained config stores study transforms as an exca.ConfDict mapping,
+    # while current pydantic validation expects a list or an OrderedDict.
+    # We build inference events from the input file directly, so study transforms
+    # are not needed for TRIBE prediction on user-provided media.
+    "data.study.transforms": [],
+}
 
 
 @dataclass(frozen=True)
@@ -82,6 +89,20 @@ def detect_input_kind(path: Path) -> InputKind:
     )
 
 
+def patch_exca_no_value_compat() -> None:
+    """Restore the exca API path expected by neuralset 0.0.2."""
+
+    try:
+        from exca.steps import base, identity
+    except Exception as exc:
+        LOGGER.warning("Could not inspect exca compatibility: %s", exc)
+        return
+
+    if not hasattr(base, "NoValue") and hasattr(identity, "NoValue"):
+        base.NoValue = identity.NoValue
+        LOGGER.info("Patched exca.steps.base.NoValue from exca.steps.identity.NoValue.")
+
+
 def run_tribe_v2(
     input_path: Path,
     output_dir: Path,
@@ -93,6 +114,7 @@ def run_tribe_v2(
 ) -> TribePrediction:
     """Run TRIBE v2 and aggregate time-resolved surface activations."""
 
+    patch_exca_no_value_compat()
     from tribev2 import TribeModel
 
     if not input_path.is_file():
@@ -104,6 +126,7 @@ def run_tribe_v2(
         checkpoint,
         cache_folder=str(cache_dir),
         device=device,
+        config_update=TRIBE_INFERENCE_CONFIG_UPDATE,
     )
 
     LOGGER.info("Preparing %s events from %s", input_kind, input_path)

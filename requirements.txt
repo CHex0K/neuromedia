@@ -15,7 +15,7 @@ mne>=1.10,<2
 mne-bids>=0.16,<0.18
 pyprep>=0.4.3,<0.6
 tqdm>=4.65,<5
-exca>=0.5.20,<0.6
+exca==0.5.26
 packaging>=24,<27
 polars>=1,<2
 ujson>=5,<6

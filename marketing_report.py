@@ -329,6 +329,20 @@ def normalize_group(value: Any) -> str:
     return GROUP_ALIASES.get(group, group)
 
 
+def patch_exca_no_value_compat() -> None:
+    """Restore the exca API path expected by neuralset 0.0.2."""
+
+    try:
+        from exca.steps import base, identity
+    except Exception as exc:
+        LOGGER.warning("Could not inspect exca compatibility: %s", exc)
+        return
+
+    if not hasattr(base, "NoValue") and hasattr(identity, "NoValue"):
+        base.NoValue = identity.NoValue
+        LOGGER.info("Patched exca.steps.base.NoValue from exca.steps.identity.NoValue.")
+
+
 def normalize_column_name(value: Any) -> str:
     """Normalize a dataframe column name for loose matching."""
 
@@ -373,6 +387,7 @@ def render_surface_png(surface: np.ndarray, title: str) -> bytes:
     import matplotlib.pyplot as plt
 
     try:
+        patch_exca_no_value_compat()
         from tribev2.plotting.cortical import PlotBrainNilearn
 
         plotter = PlotBrainNilearn(mesh="fsaverage5", inflate="half")
@@ -643,9 +658,9 @@ def top_groups_text(score_rows: pd.DataFrame, top_n: int) -> str:
 
     if score_rows.empty:
         return ""
-    top_rows = score_rows.sort_values("score_0_100", ascending=False).head(top_n)
+    top_rows = score_rows.sort_values("mean_r", ascending=False).head(top_n)
     return "<br>".join(
-        f"{escape(row.group)}: <b>{fmt_float(row.score_0_100)}</b>"
+        f"{escape(row.group)}: <b>{fmt_float(row.mean_r, 3)}</b>"
         for row in top_rows.itertuples(index=False)
     )
 
@@ -685,7 +700,7 @@ def scores_cells(score_rows: pd.DataFrame) -> str:
         if row is None:
             cells.append("<td class=\"score-cell\"></td>")
         else:
-            cells.append(f"<td class=\"score-cell\">{fmt_float(row.score_0_100)}</td>")
+            cells.append(f"<td class=\"score-cell\">{fmt_float(row.mean_r, 3)}</td>")
     return "".join(cells)
 
 
@@ -791,7 +806,7 @@ def table_header(include_time: bool, include_stimuli: bool = False) -> str:
     stimuli_headers = ""
     if include_stimuli:
         stimuli_headers = "<th>video frame</th><th>audio waveform</th><th>text</th>"
-    group_headers = "".join(f"<th>{escape(GROUP_LABELS[group])}</th>" for group in GROUP_ORDER)
+    group_headers = "".join(f"<th>{escape(GROUP_LABELS[group])}<br><span class=\"small\">mean_r</span></th>" for group in GROUP_ORDER)
     return (
         "<tr>"
         f"{prefix}"
@@ -813,8 +828,8 @@ def build_method_notes() -> str:
     <ul>
       <li><b>Группа</b> — это не одна эмоция и не один участок мозга, а набор Neurosynth reference terms, которые мы заранее объединили в маркетинговую категорию.</li>
       <li><b>top terms</b> — отдельные reference terms, отсортированные по корреляции <code>r</code> с TRIBE-картой сегмента.</li>
-      <li><b>top groups</b> — группы, отсортированные по <code>score_0_100 = 50 + 50 * mean_r</code>, где <code>mean_r</code> — средняя корреляция terms внутри группы.</li>
-      <li><b>50</b> — примерно нейтральный уровень. Выше 50 означает более сильное сходство с картами этой группы; ниже 50 — отрицательное сходство.</li>
+      <li><b>top groups</b> — группы, отсортированные по <code>mean_r</code>, где <code>mean_r</code> — средняя корреляция terms внутри группы.</li>
+      <li><b>Диапазон и top groups, и top terms: -1..+1.</b> Около 0 — нейтрально, выше 0 — положительное сходство с reference maps, ниже 0 — отрицательное сходство.</li>
       <li>Это proxy-интерпретация предсказанной TRIBE brain map, а не прямое измерение мозга зрителя и не object detection в кадре.</li>
     </ul>
   </div>
@@ -852,6 +867,145 @@ def build_group_dictionary_rows(terms: pd.DataFrame) -> str:
             "</tr>"
         )
     return "\n".join(rows)
+
+
+def segment_time_seconds(segments: pd.DataFrame, index: int) -> float:
+    """Return segment start time in seconds, falling back to segment index."""
+
+    metadata = segment_metadata(segments, index)
+    start = safe_float(metadata.get("start"))
+    if start is not None:
+        return start
+    offset = safe_float(metadata.get("offset"))
+    if offset is not None:
+        return offset
+    return float(index)
+
+
+def group_timeline_frame(scores: pd.DataFrame, segments: pd.DataFrame) -> pd.DataFrame:
+    """Build a time x group dataframe of segment-level mean_r values."""
+
+    frame = scores[
+        (scores["map_id"].astype(str) == SEGMENT_MAP_ID)
+        & (scores["time_index"].astype(str) != "aggregate")
+    ].copy()
+    if frame.empty:
+        return pd.DataFrame()
+
+    frame["time_index_int"] = frame["time_index"].astype(int)
+    frame["time_seconds"] = frame["time_index_int"].map(
+        lambda value: segment_time_seconds(segments, int(value))
+    )
+    frame["group_key"] = frame["group"].map(normalize_group)
+    frame = frame[frame["group_key"].isin(GROUP_ORDER)]
+    if frame.empty:
+        return pd.DataFrame()
+
+    timeline = frame.pivot_table(
+        index="time_seconds",
+        columns="group_key",
+        values="mean_r",
+        aggfunc="mean",
+    )
+    timeline = timeline.sort_index().reindex(columns=GROUP_ORDER)
+    return timeline
+
+
+def render_group_timeline_png(scores: pd.DataFrame, segments: pd.DataFrame) -> bytes | None:
+    """Render group mean_r changes over time as a PNG line chart."""
+
+    timeline = group_timeline_frame(scores, segments)
+    if timeline.empty:
+        return None
+
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    colors = {
+        "attention": "#1f77b4",
+        "reward": "#ff7f0e",
+        "memory": "#2ca02c",
+        "emotion": "#d62728",
+        "social": "#9467bd",
+        "aversion": "#8c564b",
+        "language": "#17becf",
+        "action": "#bcbd22",
+    }
+
+    fig, ax = plt.subplots(figsize=(12, 4.4))
+    plotted = False
+    for group in GROUP_ORDER:
+        series = timeline[group].dropna()
+        if series.empty:
+            continue
+        ax.plot(
+            series.index.to_numpy(dtype=float),
+            series.to_numpy(dtype=float),
+            marker="o",
+            markersize=3.5,
+            linewidth=1.8,
+            label=GROUP_LABELS[group],
+            color=colors[group],
+        )
+        plotted = True
+
+    if not plotted:
+        plt.close(fig)
+        return None
+
+    values = timeline.to_numpy(dtype=float)
+    finite_values = values[np.isfinite(values)]
+    if finite_values.size:
+        data_min = float(finite_values.min())
+        data_max = float(finite_values.max())
+        margin = max((data_max - data_min) * 0.18, 0.03)
+        y_min = max(-1.0, data_min - margin)
+        y_max = min(1.0, data_max + margin)
+        if y_max - y_min < 0.1:
+            center = (y_min + y_max) / 2.0
+            y_min = max(-1.0, center - 0.05)
+            y_max = min(1.0, center + 0.05)
+        ax.set_ylim(y_min, y_max)
+    else:
+        ax.set_ylim(-1.0, 1.0)
+
+    ax.axhline(0.0, color="#333333", linewidth=0.9, alpha=0.5)
+    ax.set_title("Marketing group mean_r over time", fontsize=13)
+    ax.set_xlabel("time, seconds")
+    ax.set_ylabel("mean_r correlation (-1..+1)")
+    ax.grid(True, axis="y", color="#d0d7de", linewidth=0.7, alpha=0.8)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.18), ncol=4, fontsize=9)
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
+
+    buffer = BytesIO()
+    fig.savefig(buffer, format="png", dpi=140, bbox_inches="tight")
+    plt.close(fig)
+    return buffer.getvalue()
+
+
+def build_group_timeline_section(scores: pd.DataFrame, segments: pd.DataFrame) -> str:
+    """Build the HTML section with a group correlation timeline chart."""
+
+    timeline_png = render_group_timeline_png(scores, segments)
+    if timeline_png is None:
+        return """
+  <h2>Group correlation timeline</h2>
+  <p class="small">No segment-level group scores were available for a timeline chart.</p>
+"""
+
+    image = png_data_uri(timeline_png)
+    return f"""
+  <h2>Group correlation timeline</h2>
+  <p class="small">
+    X-axis is segment start time in seconds. Y-axis is <code>mean_r</code>, the average
+    correlation between the TRIBE map for that segment and the reference maps in each group.
+  </p>
+  <div class="chart-wrap">
+    <img class="timeline-chart" src="{image}" alt="group mean_r timeline">
+  </div>
+"""
 
 
 def build_html(
@@ -898,6 +1052,7 @@ def build_html(
     input_media_text = str(input_media) if input_media is not None else ""
     method_notes = build_method_notes()
     group_dictionary_rows = build_group_dictionary_rows(terms)
+    group_timeline_section = build_group_timeline_section(scores, segments)
 
     return f"""<!doctype html>
 <html lang="ru">
@@ -978,6 +1133,19 @@ def build_html(
     .dictionary-table td:nth-child(1) {{
       width: 220px;
     }}
+    .chart-wrap {{
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      padding: 12px;
+      margin: 12px 0 28px;
+      overflow-x: auto;
+    }}
+    .timeline-chart {{
+      width: 100%;
+      min-width: 900px;
+      height: auto;
+      display: block;
+    }}
     code {{
       background: #eef2f7;
       border-radius: 3px;
@@ -1029,6 +1197,8 @@ def build_html(
     </thead>
     <tbody>{group_dictionary_rows}</tbody>
   </table>
+
+  {group_timeline_section}
 </body>
 </html>
 """
