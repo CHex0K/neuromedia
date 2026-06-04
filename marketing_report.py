@@ -53,15 +53,120 @@ GROUP_ALIASES = {
     "language_narrative": "language",
     "action_embodiment": "action",
 }
-GROUP_DESCRIPTIONS = {
-    "attention": "Прокси для внимания, выделения значимого стимула и ориентации на цель.",
-    "reward": "Прокси для ценности, мотивации, предпочтения и ожидаемого вознаграждения.",
-    "memory": "Прокси для кодирования, узнавания и извлечения информации из памяти.",
-    "emotion": "Прокси для аффекта, эмоциональной окраски, возбуждения и валентности.",
-    "social": "Прокси для социального восприятия, self/other обработки, лиц и людей.",
-    "aversion": "Прокси для угрозы, страха, боли, отвращения и негативной оценки.",
-    "language": "Прокси для речи, семантики, понимания и нарративной обработки.",
-    "action": "Прокси для действия, движения, моторики, жестов и embodied response.",
+GROUP_EXPLANATIONS = {
+    "attention": {
+        "meaning": (
+            "Внимание и выделение значимого стимула. Группа объединяет карты задач, "
+            "где участник должен заметить цель, переключить фокус, обработать визуально "
+            "важный сигнал или среагировать на salient cue."
+        ),
+        "high_score": (
+            "Сегмент похож на паттерны задач с фокусом внимания: заметный объект, "
+            "контраст, крупный текст, смена сцены, указание на цель или визуальный акцент."
+        ),
+        "marketing": (
+            "Полезно читать как proxy для способности фрагмента зацепить и удержать фокус. "
+            "Это не равно интересу или покупке."
+        ),
+    },
+    "reward": {
+        "meaning": (
+            "Ценность, мотивация и вознаграждение. Группа связана с картами задач про "
+            "reward, value, preference, incentive и reinforcement."
+        ),
+        "high_score": (
+            "Сегмент похож на паттерны оценки выгоды или привлекательности: цена, скидка, "
+            "выгода, желательность продукта, обещание результата."
+        ),
+        "marketing": (
+            "Можно читать как proxy для ценностного предложения: насколько фрагмент похож "
+            "на нейрокогнитивные карты оценки value/reward."
+        ),
+    },
+    "memory": {
+        "meaning": (
+            "Кодирование и узнавание информации. Группа объединяет memory, encoding, "
+            "recognition, recall, retrieval, episodic и familiarity."
+        ),
+        "high_score": (
+            "Сегмент похож на паттерны запоминания или узнавания: повтор бренда, "
+            "понятный объект, знакомый образ, структурированный факт или легко кодируемое сообщение."
+        ),
+        "marketing": (
+            "Можно читать как proxy для потенциальной запоминаемости элемента, но не как "
+            "гарантию, что зритель реально вспомнит рекламу."
+        ),
+    },
+    "emotion": {
+        "meaning": (
+            "Эмоциональная окраска и аффективная обработка. Группа связана с emotion, "
+            "affective, arousal, valence, pleasant и unpleasant."
+        ),
+        "high_score": (
+            "Сегмент похож на паттерны эмоциональной оценки: выразительный тон, "
+            "аффективный образ, приятность/неприятность, эмоциональный контраст."
+        ),
+        "marketing": (
+            "Можно читать как proxy для эмоциональной насыщенности фрагмента, без вывода "
+            "о конкретной эмоции зрителя."
+        ),
+    },
+    "social": {
+        "meaning": (
+            "Социальная и self/other обработка. Группа включает social, mentalizing, "
+            "self referential, people, face/faces и theory of mind."
+        ),
+        "high_score": (
+            "Сегмент похож на паттерны обработки людей, лиц, социального контекста, "
+            "персонажей, обращения к себе или понимания намерений."
+        ),
+        "marketing": (
+            "Можно читать как proxy для социальной вовлечённости или человекоцентричности "
+            "фрагмента. Термин face не означает, что detector нашёл лицо в кадре."
+        ),
+    },
+    "aversion": {
+        "meaning": (
+            "Негативная значимость, угроза и избегание. Группа связана с fear, threat, "
+            "anxiety, pain, disgust, negative и aversive."
+        ),
+        "high_score": (
+            "Сегмент похож на паттерны настороженности или негативной оценки: риск, "
+            "опасность, дискомфорт, проблема, боль, неприятный контраст."
+        ),
+        "marketing": (
+            "Можно читать как proxy для проблематизации или напряжения. Высокий score "
+            "не обязательно плохо: иногда это механизм привлечения внимания к боли клиента."
+        ),
+    },
+    "language": {
+        "meaning": (
+            "Речь, текст и смысловая обработка. Группа объединяет language, speech, "
+            "semantic, comprehension, narrative, story и sentence."
+        ),
+        "high_score": (
+            "Сегмент похож на паттерны понимания речи/текста: озвучка, субтитры, "
+            "слоган, объяснение, история, смысловой блок."
+        ),
+        "marketing": (
+            "Можно читать как proxy для смысловой нагрузки: насколько фрагмент несёт "
+            "сообщение, которое требует языковой или нарративной обработки."
+        ),
+    },
+    "action": {
+        "meaning": (
+            "Действие, движение и телесная/моторная обработка. Группа включает action, "
+            "motor, movement, hand, gesture и execution."
+        ),
+        "high_score": (
+            "Сегмент похож на паттерны наблюдения или представления действия: руки, "
+            "жесты, движение, демонстрация использования продукта, операция с объектом."
+        ),
+        "marketing": (
+            "Можно читать как proxy для демонстрационности и embodied response: "
+            "насколько фрагмент показывает, что с продуктом делают."
+        ),
+    },
 }
 MARKETING_TERMS = {
     "attention": ["attention", "attentional", "salience", "orienting", "target", "visual attention"],
@@ -704,55 +809,46 @@ def build_method_notes() -> str:
 
     return """
   <div class="note">
-    <b>How to read activation scores:</b>
+    <b>Как читать группы и scores:</b>
     <ul>
-      <li><b>top terms</b>: individual Neurosynth reference terms ranked by Pearson correlation <code>r</code> with the TRIBE fsaverage5 surface map for that segment.</li>
-      <li><b>top groups</b>: marketing groups ranked by <code>score_0_100 = 50 + 50 * mean_r</code>, where <code>mean_r</code> is the mean correlation across resolved terms in the group.</li>
-      <li><b>50</b> is approximately neutral. Values above 50 mean stronger positive similarity to that reference map family. Values below 50 mean negative similarity.</li>
-      <li>This is a proxy interpretation of model-predicted brain maps, not direct measurement of a viewer's brain and not object detection in the video frame.</li>
+      <li><b>Группа</b> — это не одна эмоция и не один участок мозга, а набор Neurosynth reference terms, которые мы заранее объединили в маркетинговую категорию.</li>
+      <li><b>top terms</b> — отдельные reference terms, отсортированные по корреляции <code>r</code> с TRIBE-картой сегмента.</li>
+      <li><b>top groups</b> — группы, отсортированные по <code>score_0_100 = 50 + 50 * mean_r</code>, где <code>mean_r</code> — средняя корреляция terms внутри группы.</li>
+      <li><b>50</b> — примерно нейтральный уровень. Выше 50 означает более сильное сходство с картами этой группы; ниже 50 — отрицательное сходство.</li>
+      <li>Это proxy-интерпретация предсказанной TRIBE brain map, а не прямое измерение мозга зрителя и не object detection в кадре.</li>
     </ul>
   </div>
 """
 
 
-def build_group_dictionary_rows() -> str:
+def resolved_terms_by_group(terms: pd.DataFrame) -> dict[str, list[str]]:
+    """Return resolved decoder terms grouped by marketing group."""
+
+    if terms.empty:
+        return {}
+
+    out: dict[str, list[str]] = {}
+    for row in terms[["feature", "group"]].dropna().drop_duplicates().itertuples(index=False):
+        group = normalize_group(row.group)
+        out.setdefault(group, []).append(str(row.feature))
+    return {group: sorted(set(features)) for group, features in out.items()}
+
+
+def build_group_dictionary_rows(terms: pd.DataFrame) -> str:
     """Build rows explaining configured marketing groups."""
 
+    resolved = resolved_terms_by_group(terms)
     rows: list[str] = []
     for group in GROUP_ORDER:
+        explanation = GROUP_EXPLANATIONS[group]
+        resolved_terms = resolved.get(group) or MARKETING_TERMS[group]
         rows.append(
             "<tr>"
             f"<td><b>{escape(GROUP_LABELS[group])}</b><br><span class=\"small\">{escape(group)}</span></td>"
-            f"<td>{escape(GROUP_DESCRIPTIONS[group])}</td>"
-            f"<td>{escape(', '.join(MARKETING_TERMS[group]))}</td>"
-            "<td>Среднее значение корреляций term-карт внутри группы, переведённое в шкалу 0-100.</td>"
-            "</tr>"
-        )
-    return "\n".join(rows)
-
-
-def build_term_dictionary_rows(terms: pd.DataFrame) -> str:
-    """Build rows explaining resolved terms present in decoder outputs."""
-
-    if terms.empty:
-        return ""
-
-    unique_terms = (
-        terms[["feature", "group"]]
-        .dropna()
-        .drop_duplicates()
-        .sort_values(["group", "feature"])
-    )
-    rows: list[str] = []
-    for row in unique_terms.itertuples(index=False):
-        group = normalize_group(row.group)
-        rows.append(
-            "<tr>"
-            f"<td>{escape(row.feature)}</td>"
-            f"<td>{escape(GROUP_LABELS.get(group, group))}</td>"
-            "<td>Корреляция <code>r</code> показывает, насколько TRIBE-карта сегмента похожа "
-            "на Neurosynth-карту этого термина. Это не означает буквальное наличие объекта "
-            "или эмоции в кадре.</td>"
+            f"<td>{escape(explanation['meaning'])}</td>"
+            f"<td>{escape(explanation['high_score'])}</td>"
+            f"<td>{escape(explanation['marketing'])}</td>"
+            f"<td>{escape(', '.join(resolved_terms))}</td>"
             "</tr>"
         )
     return "\n".join(rows)
@@ -801,8 +897,7 @@ def build_html(
     shape = f"{predictions.shape[0]} x {predictions.shape[1]}"
     input_media_text = str(input_media) if input_media is not None else ""
     method_notes = build_method_notes()
-    group_dictionary_rows = build_group_dictionary_rows()
-    term_dictionary_rows = build_term_dictionary_rows(terms)
+    group_dictionary_rows = build_group_dictionary_rows(terms)
 
     return f"""<!doctype html>
 <html lang="ru">
@@ -918,23 +1013,21 @@ def build_html(
     <tbody>{segment_rows}</tbody>
   </table>
 
-  <h2>Decoder dictionary and score interpretation</h2>
+  <h2>Marketing group dictionary and score interpretation</h2>
   {method_notes}
 
-  <h3>Marketing group descriptions</h3>
+  <h3>Marketing group meanings</h3>
   <table class="dictionary-table">
     <thead>
-      <tr><th>group</th><th>meaning</th><th>reference terms</th><th>score calculation</th></tr>
+      <tr>
+        <th>group</th>
+        <th>what it means</th>
+        <th>how to read a high score</th>
+        <th>marketing read</th>
+        <th>resolved reference terms</th>
+      </tr>
     </thead>
     <tbody>{group_dictionary_rows}</tbody>
-  </table>
-
-  <h3>Resolved term descriptions</h3>
-  <table class="dictionary-table">
-    <thead>
-      <tr><th>term</th><th>group</th><th>how to read it</th></tr>
-    </thead>
-    <tbody>{term_dictionary_rows}</tbody>
   </table>
 </body>
 </html>
