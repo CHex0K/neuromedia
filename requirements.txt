@@ -36,3 +36,4 @@ Levenshtein>=0.27,<0.28
 julius>=0.2.7,<0.3
 transformers>=4.45,<5
 pillow>=9.2,<12
+xlsxwriter>=3.2,<4

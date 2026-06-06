@@ -11,6 +11,7 @@ import logging
 import subprocess
 import tempfile
 import wave
+import zipfile
 from io import BytesIO
 from pathlib import Path
 from typing import Any
@@ -215,6 +216,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--tribe-dir", type=Path, required=True)
     parser.add_argument("--surface-dir", type=Path, required=True)
     parser.add_argument("--output-html", type=Path, required=True)
+    parser.add_argument("--output-zip", type=Path)
     parser.add_argument("--input-media", type=Path)
     parser.add_argument("--title", default="TRIBE v2 surface marketing report")
     parser.add_argument("--top-terms", type=int, default=5)
@@ -653,6 +655,36 @@ def group_scores_for_time(scores: pd.DataFrame, map_id: str, time_index: int | s
     return frame.sort_values(["_order", "group"]).drop(columns=["_order", "_group_key"])
 
 
+def resolved_term_features(terms: pd.DataFrame) -> list[str]:
+    """Return resolved decoder terms sorted by marketing group and feature name."""
+
+    if terms.empty or "feature" not in terms.columns:
+        return []
+    frame = terms[["feature", "group"]].dropna().drop_duplicates().copy()
+    if frame.empty:
+        return []
+    order = {name: idx for idx, name in enumerate(GROUP_ORDER)}
+    frame["_group_key"] = frame["group"].map(normalize_group)
+    frame["_order"] = frame["_group_key"].map(order).fillna(10_000)
+    frame["feature"] = frame["feature"].astype(str)
+    frame = frame.sort_values(["_order", "_group_key", "feature"])
+    return frame["feature"].drop_duplicates().tolist()
+
+
+def term_scores_for_time(terms: pd.DataFrame, map_id: str, time_index: int | str) -> pd.DataFrame:
+    """Return term score rows for one map/timepoint."""
+
+    time_key = str(time_index)
+    frame = terms[
+        (terms["map_id"].astype(str) == map_id)
+        & (terms["time_index"].astype(str) == time_key)
+    ].copy()
+    if frame.empty:
+        return frame
+    frame["feature"] = frame["feature"].astype(str)
+    return frame.sort_values(["feature", "group"])
+
+
 def top_groups_text(score_rows: pd.DataFrame, top_n: int) -> str:
     """Format top marketing groups for one timepoint."""
 
@@ -698,9 +730,35 @@ def scores_cells(score_rows: pd.DataFrame) -> str:
     for group in GROUP_ORDER:
         row = by_group.get(group)
         if row is None:
-            cells.append("<td class=\"score-cell\"></td>")
+            cells.append("<td class=\"score-cell group-score-column hidden-score-column\"></td>")
         else:
-            cells.append(f"<td class=\"score-cell\">{fmt_float(row.mean_r, 3)}</td>")
+            cells.append(
+                "<td class=\"score-cell group-score-column hidden-score-column\">"
+                f"{fmt_float(row.mean_r, 3)}"
+                "</td>"
+            )
+    return "".join(cells)
+
+
+def term_score_cells(term_rows: pd.DataFrame, term_features: list[str]) -> str:
+    """Build score cells for all resolved decoder terms."""
+
+    by_feature = {
+        str(row.feature): row
+        for row in term_rows.itertuples(index=False)
+        if getattr(row, "feature", None) is not None
+    }
+    cells: list[str] = []
+    for feature in term_features:
+        row = by_feature.get(feature)
+        if row is None:
+            cells.append("<td class=\"score-cell term-score-column hidden-score-column\"></td>")
+        else:
+            cells.append(
+                "<td class=\"score-cell term-score-column hidden-score-column\">"
+                f"{fmt_float(row.r, 3)}"
+                "</td>"
+            )
     return "".join(cells)
 
 
@@ -722,6 +780,7 @@ def build_segment_rows(
     predictions: np.ndarray,
     scores: pd.DataFrame,
     terms: pd.DataFrame,
+    term_features: list[str],
     segments: pd.DataFrame,
     input_media: Path | None,
     transcript: pd.DataFrame,
@@ -741,6 +800,7 @@ def build_segment_rows(
         audio_waveform = extract_audio_waveform(input_media, start, duration)
         transcript_text = transcript_text_for_segment(transcript, start, duration)
         score_rows = group_scores_for_time(scores, SEGMENT_MAP_ID, index)
+        term_rows = term_scores_for_time(terms, SEGMENT_MAP_ID, index)
         rows.append(
             "<tr>"
             f"<td>{index}</td>"
@@ -753,6 +813,7 @@ def build_segment_rows(
             f"<td class=\"top-groups-cell\">{top_groups_text(score_rows, top_groups)}</td>"
             f"<td class=\"top-terms-cell\">{top_terms_text(terms, SEGMENT_MAP_ID, index, top_terms)}</td>"
             f"{scores_cells(score_rows)}"
+            f"{term_score_cells(term_rows, term_features)}"
             "</tr>"
         )
     return "\n".join(rows)
@@ -762,6 +823,7 @@ def build_aggregate_rows(
     activity: np.ndarray | None,
     scores: pd.DataFrame,
     terms: pd.DataFrame,
+    term_features: list[str],
     top_terms: int,
     top_groups: int,
 ) -> str:
@@ -790,12 +852,17 @@ def build_aggregate_rows(
             f"<td class=\"top-groups-cell\">{top_groups_text(score_rows, top_groups)}</td>"
             f"<td class=\"top-terms-cell\">{top_terms_text(terms, map_id, 'aggregate', top_terms)}</td>"
             f"{scores_cells(score_rows)}"
+            f"{term_score_cells(term_scores_for_time(terms, map_id, 'aggregate'), term_features)}"
             "</tr>"
         )
     return "\n".join(rows)
 
 
-def table_header(include_time: bool, include_stimuli: bool = False) -> str:
+def table_header(
+    include_time: bool,
+    include_stimuli: bool = False,
+    term_features: list[str] | None = None,
+) -> str:
     """Build a common table header."""
 
     prefix = ""
@@ -806,7 +873,18 @@ def table_header(include_time: bool, include_stimuli: bool = False) -> str:
     stimuli_headers = ""
     if include_stimuli:
         stimuli_headers = "<th>video frame</th><th>audio waveform</th><th>text</th>"
-    group_headers = "".join(f"<th>{escape(GROUP_LABELS[group])}<br><span class=\"small\">mean_r</span></th>" for group in GROUP_ORDER)
+    group_headers = "".join(
+        "<th class=\"group-score-column hidden-score-column\">"
+        f"{escape(GROUP_LABELS[group])}<br><span class=\"small\">mean_r</span>"
+        "</th>"
+        for group in GROUP_ORDER
+    )
+    term_headers = "".join(
+        "<th class=\"term-score-column hidden-score-column\">"
+        f"{escape(feature)}<br><span class=\"small\">term r</span>"
+        "</th>"
+        for feature in (term_features or [])
+    )
     return (
         "<tr>"
         f"{prefix}"
@@ -815,6 +893,7 @@ def table_header(include_time: bool, include_stimuli: bool = False) -> str:
         "<th class=\"top-groups-cell\">top groups</th>"
         "<th class=\"top-terms-cell\">top terms</th>"
         f"{group_headers}"
+        f"{term_headers}"
         "</tr>"
     )
 
@@ -1008,6 +1087,183 @@ def build_group_timeline_section(scores: pd.DataFrame, segments: pd.DataFrame) -
 """
 
 
+def format_plain_top_groups(score_rows: pd.DataFrame, top_n: int) -> str:
+    """Format top groups as plain text for Excel."""
+
+    if score_rows.empty:
+        return ""
+    top_rows = score_rows.sort_values("mean_r", ascending=False).head(top_n)
+    return "\n".join(f"{row.group}: {float(row.mean_r):.3f}" for row in top_rows.itertuples(index=False))
+
+
+def format_plain_top_terms(terms: pd.DataFrame, map_id: str, time_index: int | str, top_n: int) -> str:
+    """Format top terms as plain text for Excel."""
+
+    time_key = str(time_index)
+    frame = terms[
+        (terms["map_id"].astype(str) == map_id)
+        & (terms["time_index"].astype(str) == time_key)
+    ].copy()
+    if frame.empty:
+        return ""
+    frame = frame.sort_values("r", ascending=False).head(top_n)
+    return "\n".join(
+        f"{row.feature} ({row.group}): {float(row.r):.3f}"
+        for row in frame.itertuples(index=False)
+    )
+
+
+def group_score_values(score_rows: pd.DataFrame) -> dict[str, float | None]:
+    """Return group mean_r values keyed by marketing group labels."""
+
+    by_group = {
+        normalize_group(row.group): row
+        for row in score_rows.itertuples(index=False)
+    }
+    values: dict[str, float | None] = {}
+    for group in GROUP_ORDER:
+        row = by_group.get(group)
+        values[GROUP_LABELS[group]] = None if row is None else float(row.mean_r)
+    return values
+
+
+def term_score_values(term_rows: pd.DataFrame, term_features: list[str]) -> dict[str, float | None]:
+    """Return term r values keyed by Excel-friendly term column names."""
+
+    by_feature = {
+        str(row.feature): row
+        for row in term_rows.itertuples(index=False)
+        if getattr(row, "feature", None) is not None
+    }
+    values: dict[str, float | None] = {}
+    for feature in term_features:
+        row = by_feature.get(feature)
+        values[f"term::{feature}"] = None if row is None else float(row.r)
+    return values
+
+
+def build_segment_table_frame(
+    scores: pd.DataFrame,
+    terms: pd.DataFrame,
+    term_features: list[str],
+    segments: pd.DataFrame,
+    input_media: Path | None,
+    transcript: pd.DataFrame,
+    top_terms: int,
+    top_groups: int,
+    n_segments: int,
+) -> pd.DataFrame:
+    """Build the full per-segment report table as a DataFrame for Excel."""
+
+    rows: list[dict[str, Any]] = []
+    for index in range(n_segments):
+        metadata = segment_metadata(segments, index)
+        start = safe_float(metadata.get("start"))
+        duration = safe_float(metadata.get("duration"))
+        score_rows = group_scores_for_time(scores, SEGMENT_MAP_ID, index)
+        term_rows = term_scores_for_time(terms, SEGMENT_MAP_ID, index)
+        row: dict[str, Any] = {
+            "segment": index,
+            "start": metadata.get("start", ""),
+            "duration": metadata.get("duration", ""),
+            "text": transcript_text_for_segment(transcript, start, duration),
+            "top groups": format_plain_top_groups(score_rows, top_groups),
+            "top terms": format_plain_top_terms(terms, SEGMENT_MAP_ID, index, top_terms),
+        }
+        row.update(group_score_values(score_rows))
+        row.update(term_score_values(term_rows, term_features))
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def build_aggregate_table_frame(
+    scores: pd.DataFrame,
+    terms: pd.DataFrame,
+    term_features: list[str],
+    top_terms: int,
+    top_groups: int,
+) -> pd.DataFrame:
+    """Build the whole-video report table as a DataFrame for Excel."""
+
+    rows: list[dict[str, Any]] = []
+    labels = {
+        SEGMENT_MAP_ID: "mean of segment scores",
+        AGGREGATE_MAP_ID: "whole-video activity map",
+    }
+    for map_id in (SEGMENT_MAP_ID, AGGREGATE_MAP_ID):
+        score_rows = group_scores_for_time(scores, map_id, "aggregate")
+        if score_rows.empty:
+            continue
+        term_rows = term_scores_for_time(terms, map_id, "aggregate")
+        row: dict[str, Any] = {
+            "summary": labels.get(map_id, map_id),
+            "map_id": map_id,
+            "top groups": format_plain_top_groups(score_rows, top_groups),
+            "top terms": format_plain_top_terms(terms, map_id, "aggregate", top_terms),
+        }
+        row.update(group_score_values(score_rows))
+        row.update(term_score_values(term_rows, term_features))
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def autosize_excel_columns(writer: pd.ExcelWriter, sheet_name: str, frame: pd.DataFrame) -> None:
+    """Apply readable widths to an Excel worksheet."""
+
+    worksheet = writer.sheets[sheet_name]
+    for col_index, column in enumerate(frame.columns):
+        values = frame[column].astype(str).head(200).tolist()
+        max_len = max([len(str(column)), *(len(value) for value in values)], default=10)
+        worksheet.set_column(col_index, col_index, min(max(max_len + 2, 10), 42))
+
+
+def write_excel_report(
+    output_xlsx: Path,
+    scores: pd.DataFrame,
+    terms: pd.DataFrame,
+    segment_table: pd.DataFrame,
+    aggregate_table: pd.DataFrame,
+) -> Path:
+    """Write downloadable Excel tables mirroring the HTML report data."""
+
+    output_xlsx.parent.mkdir(parents=True, exist_ok=True)
+    group_dictionary = pd.DataFrame(
+        [
+            {
+                "group": GROUP_LABELS[group],
+                "short_key": group,
+                "what it means": GROUP_EXPLANATIONS[group]["meaning"],
+                "how to read a high score": GROUP_EXPLANATIONS[group]["high_score"],
+                "marketing read": GROUP_EXPLANATIONS[group]["marketing"],
+                "configured terms": ", ".join(MARKETING_TERMS[group]),
+            }
+            for group in GROUP_ORDER
+        ]
+    )
+    with pd.ExcelWriter(output_xlsx, engine="xlsxwriter") as writer:
+        sheets = {
+            "per_segment": segment_table,
+            "whole_video": aggregate_table,
+            "group_scores_long": scores,
+            "term_scores_long": terms,
+            "group_dictionary": group_dictionary,
+        }
+        for sheet_name, frame in sheets.items():
+            frame.to_excel(writer, sheet_name=sheet_name, index=False)
+            autosize_excel_columns(writer, sheet_name, frame)
+    return output_xlsx
+
+
+def write_report_zip(output_zip: Path, output_html: Path, output_xlsx: Path) -> Path:
+    """Bundle the HTML and Excel report into a ZIP archive."""
+
+    output_zip.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(output_zip, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.write(output_html, arcname=output_html.name)
+        archive.write(output_xlsx, arcname=output_xlsx.name)
+    return output_zip
+
+
 def build_html(
     title: str,
     tribe_dir: Path,
@@ -1025,10 +1281,12 @@ def build_html(
     """Assemble the full self-contained HTML report."""
 
     transcript = load_sidecar_transcript(input_media)
+    term_features = resolved_term_features(terms)
     segment_rows = build_segment_rows(
         predictions=predictions,
         scores=scores,
         terms=terms,
+        term_features=term_features,
         segments=segments,
         input_media=input_media,
         transcript=transcript,
@@ -1039,6 +1297,7 @@ def build_html(
         activity=activity,
         scores=scores,
         terms=terms,
+        term_features=term_features,
         top_terms=top_terms,
         top_groups=top_groups,
     )
@@ -1053,6 +1312,7 @@ def build_html(
     method_notes = build_method_notes()
     group_dictionary_rows = build_group_dictionary_rows(terms)
     group_timeline_section = build_group_timeline_section(scores, segments)
+    n_term_columns = len(term_features)
 
     return f"""<!doctype html>
 <html lang="ru">
@@ -1094,6 +1354,26 @@ def build_html(
     .score-cell {{
       text-align: right;
       white-space: nowrap;
+    }}
+    .hidden-score-column {{
+      display: none;
+    }}
+    .table-controls {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 10px 0;
+    }}
+    .table-controls button {{
+      border: 1px solid #8c959f;
+      background: #f6f8fa;
+      border-radius: 4px;
+      cursor: pointer;
+      padding: 6px 10px;
+      font-size: 12px;
+    }}
+    .table-controls button:hover {{
+      background: #eef2f7;
     }}
     .brain {{
       width: 260px;
@@ -1153,6 +1433,25 @@ def build_html(
     }}
     .small {{ font-size: 11px; color: #57606a; }}
   </style>
+  <script>
+    function toggleScoreColumns(className, buttonId, showText, hideText) {{
+      const columns = document.querySelectorAll("." + className);
+      let shouldShow = false;
+      for (const column of columns) {{
+        if (column.classList.contains("hidden-score-column")) {{
+          shouldShow = true;
+          break;
+        }}
+      }}
+      for (const column of columns) {{
+        column.classList.toggle("hidden-score-column", !shouldShow);
+      }}
+      const button = document.getElementById(buttonId);
+      if (button) {{
+        button.textContent = shouldShow ? hideText : showText;
+      }}
+    }}
+  </script>
 </head>
 <body>
   <h1>{safe_title}</h1>
@@ -1169,15 +1468,23 @@ def build_html(
   </div>
 
   <h2>Whole-video interpretation</h2>
+  <div class="table-controls">
+    <button id="toggle-aggregate-groups" type="button" onclick="toggleScoreColumns('group-score-column', 'toggle-aggregate-groups', 'Show group score columns', 'Hide group score columns')">Show group score columns</button>
+    <button id="toggle-aggregate-terms" type="button" onclick="toggleScoreColumns('term-score-column', 'toggle-aggregate-terms', 'Show term score columns ({n_term_columns})', 'Hide term score columns ({n_term_columns})')">Show term score columns ({n_term_columns})</button>
+  </div>
   <table>
-    <thead>{table_header(include_time=False)}</thead>
+    <thead>{table_header(include_time=False, term_features=term_features)}</thead>
     <tbody>{aggregate_rows}</tbody>
   </table>
 
   <h2>Per-segment brain activity and decoding</h2>
   <p class="small">Every TRIBE timepoint is included; this table is not truncated to the UI preview limit.</p>
+  <div class="table-controls">
+    <button id="toggle-segment-groups" type="button" onclick="toggleScoreColumns('group-score-column', 'toggle-segment-groups', 'Show group score columns', 'Hide group score columns')">Show group score columns</button>
+    <button id="toggle-segment-terms" type="button" onclick="toggleScoreColumns('term-score-column', 'toggle-segment-terms', 'Show term score columns ({n_term_columns})', 'Hide term score columns ({n_term_columns})')">Show term score columns ({n_term_columns})</button>
+  </div>
   <table>
-    <thead>{table_header(include_time=True, include_stimuli=True)}</thead>
+    <thead>{table_header(include_time=True, include_stimuli=True, term_features=term_features)}</thead>
     <tbody>{segment_rows}</tbody>
   </table>
 
@@ -1208,16 +1515,37 @@ def generate_report(
     tribe_dir: Path,
     surface_dir: Path,
     output_html: Path,
+    output_zip: Path | None,
     input_media: Path | None,
     title: str,
     top_terms: int,
     top_groups: int,
 ) -> Path:
-    """Generate the report and return its path."""
+    """Generate HTML, Excel, optional ZIP bundle, and return downloadable path."""
 
     predictions, activity = load_predictions(tribe_dir)
     scores, terms, decoder_report = load_decoder_tables(surface_dir)
     segments = load_segments(tribe_dir)
+    transcript = load_sidecar_transcript(input_media)
+    term_features = resolved_term_features(terms)
+    segment_table = build_segment_table_frame(
+        scores=scores,
+        terms=terms,
+        term_features=term_features,
+        segments=segments,
+        input_media=input_media,
+        transcript=transcript,
+        top_terms=top_terms,
+        top_groups=top_groups,
+        n_segments=predictions.shape[0],
+    )
+    aggregate_table = build_aggregate_table_frame(
+        scores=scores,
+        terms=terms,
+        term_features=term_features,
+        top_terms=top_terms,
+        top_groups=top_groups,
+    )
     html_text = build_html(
         title=title,
         tribe_dir=tribe_dir,
@@ -1234,7 +1562,17 @@ def generate_report(
     )
     output_html.parent.mkdir(parents=True, exist_ok=True)
     output_html.write_text(html_text, encoding="utf-8")
-    return output_html
+    output_xlsx = output_html.with_suffix(".xlsx")
+    write_excel_report(
+        output_xlsx=output_xlsx,
+        scores=scores,
+        terms=terms,
+        segment_table=segment_table,
+        aggregate_table=aggregate_table,
+    )
+    if output_zip is None:
+        return output_html
+    return write_report_zip(output_zip, output_html=output_html, output_xlsx=output_xlsx)
 
 
 def main() -> None:
@@ -1246,12 +1584,13 @@ def main() -> None:
         tribe_dir=args.tribe_dir,
         surface_dir=args.surface_dir,
         output_html=args.output_html,
+        output_zip=args.output_zip,
         input_media=args.input_media,
         title=args.title,
         top_terms=args.top_terms,
         top_groups=args.top_groups,
     )
-    print(f"Saved HTML report: {output}")
+    print(f"Saved report: {output}")
 
 
 if __name__ == "__main__":

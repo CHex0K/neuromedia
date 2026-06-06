@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import pickle
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Literal
@@ -27,6 +29,7 @@ LOGGER = logging.getLogger("tribe_nimare")
 InputKind = Literal["text", "audio", "video"]
 Aggregation = Literal["mean", "median", "max_abs"]
 
+RUNNER_BUILD_ID = "diagnostics-20260605-01"
 FSAVERAGE5_VERTICES_PER_HEMISPHERE = 10242
 FSAVERAGE5_TOTAL_VERTICES = FSAVERAGE5_VERTICES_PER_HEMISPHERE * 2
 TRIBE_INFERENCE_CONFIG_UPDATE = {
@@ -63,6 +66,93 @@ def configure_logging(verbose: bool) -> None:
         level=level,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
+
+
+def format_gib_from_kib(value_kib: int | None) -> str:
+    """Format a KiB value from /proc/meminfo as GiB."""
+
+    if value_kib is None:
+        return "n/a"
+    return f"{value_kib / 1024 / 1024:.1f} GiB"
+
+
+def read_meminfo() -> dict[str, int]:
+    """Read selected /proc/meminfo values in KiB."""
+
+    out: dict[str, int] = {}
+    try:
+        for line in Path("/proc/meminfo").read_text(encoding="utf-8").splitlines():
+            key, raw_value = line.split(":", 1)
+            value = raw_value.strip().split()[0]
+            if value.isdigit():
+                out[key] = int(value)
+    except Exception:
+        pass
+    return out
+
+
+def short_command_output(cmd: list[str], timeout: float = 5.0) -> str:
+    """Run a small diagnostic command and return compact stdout/stderr."""
+
+    try:
+        completed = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=timeout,
+        )
+    except Exception as exc:
+        return f"{type(exc).__name__}: {exc}"
+    text = (completed.stdout or completed.stderr or "").strip()
+    return text or f"exit={completed.returncode}; no output"
+
+
+def log_resource_snapshot(label: str) -> None:
+    """Log RAM/GPU diagnostics for TRIBE subprocess debugging."""
+
+    meminfo = read_meminfo()
+    total = meminfo.get("MemTotal")
+    available = meminfo.get("MemAvailable")
+    used = total - available if total is not None and available is not None else None
+    swap_total = meminfo.get("SwapTotal")
+    swap_free = meminfo.get("SwapFree")
+    swap_used = (
+        swap_total - swap_free
+        if swap_total is not None and swap_free is not None
+        else None
+    )
+    LOGGER.info(
+        "[diag] %s pid=%s RAM used/total/available: %s / %s / %s",
+        label,
+        os.getpid(),
+        format_gib_from_kib(used),
+        format_gib_from_kib(total),
+        format_gib_from_kib(available),
+    )
+    LOGGER.info(
+        "[diag] %s swap used/total/free: %s / %s / %s",
+        label,
+        format_gib_from_kib(swap_used),
+        format_gib_from_kib(swap_total),
+        format_gib_from_kib(swap_free),
+    )
+    gpu_output = short_command_output(
+        [
+            "nvidia-smi",
+            "--query-gpu=name,memory.used,memory.total,utilization.gpu,temperature.gpu",
+            "--format=csv,noheader,nounits",
+        ]
+    )
+    LOGGER.info("[diag] %s GPU name,mem_used,mem_total,util,temp: %s", label, gpu_output)
+    gpu_processes = short_command_output(
+        [
+            "nvidia-smi",
+            "--query-compute-apps=pid,process_name,used_memory",
+            "--format=csv,noheader,nounits",
+        ]
+    )
+    LOGGER.info("[diag] %s GPU processes pid,name,mem: %s", label, gpu_processes)
 
 
 def ensure_output_dir(path: Path) -> Path:
@@ -122,12 +212,14 @@ def run_tribe_v2(
 
     input_kind = detect_input_kind(input_path)
     LOGGER.info("Loading TRIBE v2 checkpoint: %s", checkpoint)
+    log_resource_snapshot("before TribeModel.from_pretrained")
     model = TribeModel.from_pretrained(
         checkpoint,
         cache_folder=str(cache_dir),
         device=device,
         config_update=TRIBE_INFERENCE_CONFIG_UPDATE,
     )
+    log_resource_snapshot("after TribeModel.from_pretrained")
 
     LOGGER.info("Preparing %s events from %s", input_kind, input_path)
     events_kwargs = {
@@ -137,9 +229,17 @@ def run_tribe_v2(
     }
     events_kwargs[f"{input_kind}_path"] = str(input_path)
     events = model.get_events_dataframe(**events_kwargs)
+    LOGGER.info(
+        "Prepared events: rows=%d, types=%s",
+        len(events),
+        sorted(str(value) for value in events["type"].dropna().unique()),
+    )
+    log_resource_snapshot("after get_events_dataframe")
 
     LOGGER.info("Running TRIBE v2 inference")
+    log_resource_snapshot("before model.predict")
     predictions, segments = model.predict(events=events, verbose=verbose)
+    log_resource_snapshot("after model.predict")
     predictions = np.asarray(predictions, dtype=np.float32)
     segments = list(segments)
     validate_tribe_predictions(predictions)
@@ -648,6 +748,7 @@ def main() -> None:
 
     args = parse_args()
     configure_logging(verbose=not args.quiet)
+    LOGGER.info("tribe_nimare_interpreter build: %s", RUNNER_BUILD_ID)
 
     output_dir = ensure_output_dir(args.output_dir)
     args.cache_dir.mkdir(parents=True, exist_ok=True)
