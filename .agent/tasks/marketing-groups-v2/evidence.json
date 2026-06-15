@@ -1,0 +1,85 @@
+{
+  "task_id": "marketing-groups-v2",
+  "overall_status": "PASS",
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "text": "marketing_surface_decoder.py uses the new 8-group marketing preset with no term duplicated across groups.",
+      "status": "PASS",
+      "proof": [
+        "marketing_surface_decoder.py defines MARKETING_PRESET_NAME = \"marketing_v2\".",
+        "marketing_surface_decoder.py defines MARKETING_PRESET with attention, affect_arousal, affect_valence, memory, reward, social, cog_clarity, and cog_load.",
+        "raw/lint.txt reports configured_terms=51, unique_configured_terms=51, duplicates=0."
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC2",
+      "text": "The decoder/reference metadata version and Colab reference cache path are changed so old marketing_v1 reference maps are not silently reused.",
+      "status": "PASS",
+      "proof": [
+        "marketing_surface_decoder.py defines REFERENCE_VERSION = \"marketing_surface_v2\".",
+        "run_surface_decoder_colab.ipynb uses cache/surface_references/marketing_v2.",
+        "raw/test-integration.txt reports notebook embedded payloads and cache path PASS."
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC3",
+      "text": "marketing_report.py reflects the new groups in ordering, labels, aliases, explanations, dictionaries, hidden score columns, Excel export, and timeline chart.",
+      "status": "PASS",
+      "proof": [
+        "marketing_report.py updates GROUP_ORDER, GROUP_LABELS, GROUP_ALIASES, GROUP_EXPLANATIONS, and MARKETING_TERMS for the new groups.",
+        "Existing report helpers consume GROUP_ORDER and GROUP_LABELS for table headers, hidden score columns, dictionary rows, Excel export, and timeline chart.",
+        "raw/build.txt reports py_compile PASS."
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC4",
+      "text": "run_surface_decoder_colab.ipynb writes the updated embedded project files and uses the new reference cache path.",
+      "status": "PASS",
+      "proof": [
+        "Notebook base64 constants were refreshed from the local source files.",
+        "raw/test-unit.txt reports notebook JSON and code-cell AST parse PASS.",
+        "raw/test-integration.txt reports notebook embedded payloads and cache path PASS."
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC5",
+      "text": "Verification proves the new preset resolves against Neurosynth term names with zero missing aliases and no duplicate terms, and the unique resolved feature count stays within the configured 60-feature limit.",
+      "status": "PASS",
+      "proof": [
+        "raw/lint.txt fetched live Neurosynth term_names and ran FeatureResolver against MARKETING_PRESET.",
+        "raw/lint.txt reports resolved_aliases=51, unique_resolved_features=51, max_resolved_features=60, missing_aliases=0, duplicates=0."
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC6",
+      "text": "Existing batch/single-file UI behavior and report ZIP behavior remain intact at the code level.",
+      "status": "PASS",
+      "proof": [
+        "run_surface_decoder_colab.ipynb still contains the single-file/folder batch loop and report_file_output download behavior.",
+        "raw/test-unit.txt validates notebook syntax.",
+        "raw/test-integration.txt validates embedded report and surface decoder payloads after the change."
+      ],
+      "gaps": []
+    }
+  ],
+  "changed_files": [
+    "marketing_surface_decoder.py",
+    "marketing_report.py",
+    "run_surface_decoder_colab.ipynb",
+    ".agent/tasks/marketing-groups-v2/spec.md",
+    ".agent/tasks/marketing-groups-v2/evidence.md",
+    ".agent/tasks/marketing-groups-v2/evidence.json"
+  ],
+  "commands_for_fresh_verifier": [
+    "python -m py_compile tribe_nimare_interpreter.py marketing_surface_decoder.py marketing_report.py",
+    "python - <<'PY'\nimport ast, json\nfrom pathlib import Path\nnb = json.loads(Path('run_surface_decoder_colab.ipynb').read_text(encoding='utf-8'))\nfor idx, cell in enumerate(nb['cells']):\n    if cell.get('cell_type') == 'code':\n        ast.parse(''.join(cell.get('source', [])), filename=f'cell_{idx}')\nprint('notebook parse ok')\nPY",
+    "Run the resolver proof recorded in .agent/tasks/marketing-groups-v2/raw/lint.txt or rerun its script from evidence.md."
+  ],
+  "known_gaps": []
+}

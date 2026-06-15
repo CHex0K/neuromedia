@@ -26,158 +26,231 @@ SEGMENT_MAP_ID = "tribe_predictions_fsaverage5"
 AGGREGATE_MAP_ID = "tribe_activity_fsaverage5"
 GROUP_ORDER = [
     "attention",
-    "reward",
+    "affect_arousal",
+    "affect_valence",
     "memory",
-    "emotion",
+    "reward",
     "social",
-    "aversion",
-    "language",
-    "action",
+    "cog_clarity",
+    "cog_load",
 ]
 GROUP_LABELS = {
-    "attention": "attention_salience",
-    "reward": "reward_value",
-    "memory": "memory_encoding",
-    "emotion": "emotion_affect",
-    "social": "social_self",
-    "aversion": "aversion_risk",
-    "language": "language_narrative",
-    "action": "action_embodiment",
+    "attention": "Attention — Захват внимания",
+    "affect_arousal": "Affect Arousal — Интенсивность",
+    "affect_valence": "Affect Valence — Знак / негативная окраска",
+    "memory": "Memory — Потенциал запоминания",
+    "reward": "Reward — Воспринимаемая ценность",
+    "social": "Social — Социальный резонанс",
+    "cog_clarity": "COG Clarity — Ясность",
+    "cog_load": "COG Load — Нагрузка",
+}
+GROUP_COLORS = {
+    "attention": "#1f77b4",
+    "affect_arousal": "#d62728",
+    "affect_valence": "#e377c2",
+    "memory": "#2ca02c",
+    "reward": "#ff7f0e",
+    "social": "#9467bd",
+    "cog_clarity": "#17becf",
+    "cog_load": "#8c564b",
 }
 GROUP_ALIASES = {
-    "attention_salience": "attention",
-    "reward_value": "reward",
-    "memory_encoding": "memory",
-    "emotion_affect": "emotion",
-    "social_self": "social",
-    "aversion_risk": "aversion",
-    "language_narrative": "language",
-    "action_embodiment": "action",
+    "Attention — Захват внимания": "attention",
+    "Affect Arousal — Интенсивность": "affect_arousal",
+    "Affect Valence — Знак / негативная окраска": "affect_valence",
+    "Memory — Потенциал запоминания": "memory",
+    "Reward — Воспринимаемая ценность": "reward",
+    "Social — Социальный резонанс": "social",
+    "COG Clarity — Ясность": "cog_clarity",
+    "COG Load — Нагрузка": "cog_load",
 }
 GROUP_EXPLANATIONS = {
     "attention": {
         "meaning": (
-            "Внимание и выделение значимого стимула. Группа объединяет карты задач, "
-            "где участник должен заметить цель, переключить фокус, обработать визуально "
-            "важный сигнал или среагировать на salient cue."
+            "Захват и удержание внимания. Группа объединяет карты задач на attention, "
+            "visual attention, orienting, target detection, salience, visual stimuli "
+            "и distractor."
         ),
         "high_score": (
-            "Сегмент похож на паттерны задач с фокусом внимания: заметный объект, "
-            "контраст, крупный текст, смена сцены, указание на цель или визуальный акцент."
+            "Сегмент похож на паттерны обнаружения цели, переключения фокуса, "
+            "реакции на заметный визуальный стимул или конкурирующий distractor."
         ),
         "marketing": (
             "Полезно читать как proxy для способности фрагмента зацепить и удержать фокус. "
             "Это не равно интересу или покупке."
         ),
     },
-    "reward": {
+    "affect_arousal": {
         "meaning": (
-            "Ценность, мотивация и вознаграждение. Группа связана с картами задач про "
-            "reward, value, preference, incentive и reinforcement."
+            "Интенсивность аффективной обработки без разделения на положительный или "
+            "отрицательный знак. Группа связана с arousal, affective, emotional, "
+            "emotional stimuli и emotional responses."
         ),
         "high_score": (
-            "Сегмент похож на паттерны оценки выгоды или привлекательности: цена, скидка, "
-            "выгода, желательность продукта, обещание результата."
+            "Сегмент похож на эмоционально насыщенные или возбуждающие стимулы, "
+            "которые требуют более сильной аффективной обработки."
         ),
         "marketing": (
-            "Можно читать как proxy для ценностного предложения: насколько фрагмент похож "
-            "на нейрокогнитивные карты оценки value/reward."
+            "Можно читать как proxy эмоциональной интенсивности фрагмента, без вывода "
+            "о конкретной эмоции и без измерения реального состояния зрителя."
+        ),
+    },
+    "affect_valence": {
+        "meaning": (
+            "Знак и негативная окраска аффективной оценки. Группа опирается на valence, "
+            "negative affect, disgust, fear и anxiety."
+        ),
+        "high_score": (
+            "Сегмент похож на паттерны валентной или негативно окрашенной оценки: "
+            "угроза, тревога, отвращение, проблема или эмоциональный риск."
+        ),
+        "marketing": (
+            "Это proxy для valence/negative-affect сигналов, а не симметричная шкала "
+            "позитивного и негативного отношения."
         ),
     },
     "memory": {
         "meaning": (
-            "Кодирование и узнавание информации. Группа объединяет memory, encoding, "
-            "recognition, recall, retrieval, episodic и familiarity."
+            "Потенциал кодирования и узнавания информации. Группа объединяет encoding, "
+            "subsequent memory, episodic memory, semantic memory, recall, recognition "
+            "и familiarity."
         ),
         "high_score": (
-            "Сегмент похож на паттерны запоминания или узнавания: повтор бренда, "
-            "понятный объект, знакомый образ, структурированный факт или легко кодируемое сообщение."
+            "Сегмент похож на паттерны запоминания, последующего узнавания или "
+            "семантического кодирования: повтор, понятный объект, факт, брендовый cue."
         ),
         "marketing": (
-            "Можно читать как proxy для потенциальной запоминаемости элемента, но не как "
+            "Можно читать как proxy потенциальной запоминаемости элемента, но не как "
             "гарантию, что зритель реально вспомнит рекламу."
         ),
     },
-    "emotion": {
+    "reward": {
         "meaning": (
-            "Эмоциональная окраска и аффективная обработка. Группа связана с emotion, "
-            "affective, arousal, valence, pleasant и unpleasant."
+            "Воспринимаемая ценность, мотивация и приближение к вознаграждению. "
+            "Группа связана с reward, reward anticipation, value, incentive, "
+            "preference, monetary reward, craving и approach."
         ),
         "high_score": (
-            "Сегмент похож на паттерны эмоциональной оценки: выразительный тон, "
-            "аффективный образ, приятность/неприятность, эмоциональный контраст."
+            "Сегмент похож на паттерны оценки выгоды или привлекательности: цена, "
+            "скидка, желательность продукта, обещание результата или мотивационный стимул."
         ),
         "marketing": (
-            "Можно читать как proxy для эмоциональной насыщенности фрагмента, без вывода "
-            "о конкретной эмоции зрителя."
+            "Можно читать как proxy ценностного предложения: насколько фрагмент похож "
+            "на нейрокогнитивные карты value/reward."
         ),
     },
     "social": {
         "meaning": (
-            "Социальная и self/other обработка. Группа включает social, mentalizing, "
-            "self referential, people, face/faces и theory of mind."
+            "Социальный резонанс и обработка людей/намерений. Группа включает social "
+            "cognition, mentalizing, theory mind, face, gaze, self referential, empathy "
+            "и social."
         ),
         "high_score": (
             "Сегмент похож на паттерны обработки людей, лиц, социального контекста, "
-            "персонажей, обращения к себе или понимания намерений."
+            "направления взгляда, обращения к себе, эмпатии или понимания намерений."
         ),
         "marketing": (
             "Можно читать как proxy для социальной вовлечённости или человекоцентричности "
             "фрагмента. Термин face не означает, что detector нашёл лицо в кадре."
         ),
     },
-    "aversion": {
+    "cog_clarity": {
         "meaning": (
-            "Негативная значимость, угроза и избегание. Группа связана с fear, threat, "
-            "anxiety, pain, disgust, negative и aversive."
-        ),
-        "high_score": (
-            "Сегмент похож на паттерны настороженности или негативной оценки: риск, "
-            "опасность, дискомфорт, проблема, боль, неприятный контраст."
-        ),
-        "marketing": (
-            "Можно читать как proxy для проблематизации или напряжения. Высокий score "
-            "не обязательно плохо: иногда это механизм привлечения внимания к боли клиента."
-        ),
-    },
-    "language": {
-        "meaning": (
-            "Речь, текст и смысловая обработка. Группа объединяет language, speech, "
-            "semantic, comprehension, narrative, story и sentence."
+            "Ясность смысловой обработки. Группа объединяет language, semantic, "
+            "sentence comprehension и comprehension."
         ),
         "high_score": (
             "Сегмент похож на паттерны понимания речи/текста: озвучка, субтитры, "
-            "слоган, объяснение, история, смысловой блок."
+            "слоган, объяснение или явно структурированный смысловой блок."
         ),
         "marketing": (
-            "Можно читать как proxy для смысловой нагрузки: насколько фрагмент несёт "
-            "сообщение, которое требует языковой или нарративной обработки."
+            "Можно читать как proxy того, насколько фрагмент несет понятное сообщение, "
+            "которое требует языковой или семантической обработки."
         ),
     },
-    "action": {
+    "cog_load": {
         "meaning": (
-            "Действие, движение и телесная/моторная обработка. Группа включает action, "
-            "motor, movement, hand, gesture и execution."
+            "Когнитивная нагрузка и контроль. Группа связана с working memory, "
+            "cognitive control, executive function, inhibition и task difficulty."
         ),
         "high_score": (
-            "Сегмент похож на паттерны наблюдения или представления действия: руки, "
-            "жесты, движение, демонстрация использования продукта, операция с объектом."
+            "Сегмент похож на задачи, где нужно удерживать информацию, подавлять "
+            "конкурирующие реакции, управлять вниманием или решать более сложную задачу."
         ),
         "marketing": (
-            "Можно читать как proxy для демонстрационности и embodied response: "
-            "насколько фрагмент показывает, что с продуктом делают."
+            "Можно читать как proxy сложности восприятия: высокий score может означать "
+            "больше умственной работы, но не обязательно хуже."
         ),
     },
 }
 MARKETING_TERMS = {
-    "attention": ["attention", "attentional", "salience", "orienting", "target", "visual attention"],
-    "reward": ["reward", "value", "valuation", "incentive", "motivation", "preference", "reinforcement"],
-    "memory": ["memory", "encoding", "recall", "recognition", "episodic", "retrieval", "familiarity"],
-    "emotion": ["emotion", "emotional", "affective", "affect", "arousal", "valence", "pleasant", "unpleasant"],
-    "social": ["social", "mentalizing", "self", "self referential", "person", "people", "face", "faces", "theory of mind"],
-    "aversion": ["fear", "threat", "anxiety", "pain", "disgust", "negative", "aversive"],
-    "language": ["language", "speech", "semantic", "comprehension", "narrative", "story", "sentence"],
-    "action": ["action", "motor", "movement", "hand", "gesture", "execution"],
+    "attention": [
+        "attention",
+        "visual attention",
+        "attentional",
+        "orienting",
+        "target detection",
+        "salience",
+        "visual stimuli",
+        "distractor",
+    ],
+    "affect_arousal": [
+        "arousal",
+        "affective",
+        "emotional",
+        "emotional stimuli",
+        "emotional responses",
+    ],
+    "affect_valence": [
+        "valence",
+        "negative affect",
+        "disgust",
+        "fear",
+        "anxiety",
+    ],
+    "memory": [
+        "encoding",
+        "subsequent memory",
+        "episodic memory",
+        "semantic memory",
+        "recall",
+        "recognition",
+        "familiarity",
+    ],
+    "reward": [
+        "reward",
+        "reward anticipation",
+        "motivation",
+        "value",
+        "incentive",
+        "preference",
+        "approach",
+        "monetary reward",
+        "craving",
+    ],
+    "social": [
+        "social cognition",
+        "mentalizing",
+        "theory mind",
+        "face",
+        "gaze",
+        "self referential",
+        "empathy",
+        "social",
+    ],
+    "cog_clarity": [
+        "language",
+        "semantic",
+        "sentence comprehension",
+        "comprehension",
+    ],
+    "cog_load": [
+        "working memory",
+        "cognitive control",
+        "executive function",
+        "inhibition",
+        "task difficulty",
+    ],
 }
 VIDEO_EXTENSIONS = {".mp4", ".avi", ".mkv", ".mov", ".webm"}
 AUDIO_EXTENSIONS = {".wav", ".mp3", ".flac", ".ogg", ".m4a", ".aac", ".mp4", ".avi", ".mkv", ".mov", ".webm"}
@@ -1002,17 +1075,6 @@ def render_group_timeline_png(scores: pd.DataFrame, segments: pd.DataFrame) -> b
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    colors = {
-        "attention": "#1f77b4",
-        "reward": "#ff7f0e",
-        "memory": "#2ca02c",
-        "emotion": "#d62728",
-        "social": "#9467bd",
-        "aversion": "#8c564b",
-        "language": "#17becf",
-        "action": "#bcbd22",
-    }
-
     fig, ax = plt.subplots(figsize=(12, 4.4))
     plotted = False
     for group in GROUP_ORDER:
@@ -1026,7 +1088,7 @@ def render_group_timeline_png(scores: pd.DataFrame, segments: pd.DataFrame) -> b
             markersize=3.5,
             linewidth=1.8,
             label=GROUP_LABELS[group],
-            color=colors[group],
+            color=GROUP_COLORS.get(group),
         )
         plotted = True
 

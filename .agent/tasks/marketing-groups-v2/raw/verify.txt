@@ -1,0 +1,5 @@
+AC1/AC2 surface preset/version PASS
+AC3 report constants PASS
+AC4 notebook payload/cache PASS
+AC5 resolver PASS
+AC6 build/UI static PASS

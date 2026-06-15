@@ -41,7 +41,8 @@ FSAVERAGE5_VERTICES_PER_HEMISPHERE = 10242
 FSAVERAGE5_TOTAL_VERTICES = FSAVERAGE5_VERTICES_PER_HEMISPHERE * 2
 MAX_RESOLVED_FEATURES = 60
 DEFAULT_FREQUENCY_THRESHOLD = 0.05
-REFERENCE_VERSION = "marketing_surface_v1"
+MARKETING_PRESET_NAME = "marketing_v2"
+REFERENCE_VERSION = "marketing_surface_v2"
 HemisphereOrder = Literal["left_then_right", "right_then_left"]
 HTTP_TIMEOUT_SECONDS = 120
 HTTP_RETRY_ATTEMPTS = 5
@@ -50,134 +51,128 @@ HTTP_USER_AGENT = "neuromedia-marketing-surface-decoder/1.0"
 NEUROSYNTH_BASE_URL = "https://neurosynth.org"
 NEUROSYNTH_TERM_NAMES_URL = f"{NEUROSYNTH_BASE_URL}/api/analyses/term_names"
 
-MARKETING_V1: dict[str, list[str]] = {
+MARKETING_PRESET: dict[str, list[str]] = {
     "attention": [
         "attention",
-        "attentional",
-        "salience",
-        "orienting",
-        "target",
         "visual attention",
+        "attentional",
+        "orienting",
+        "target detection",
+        "salience",
+        "visual stimuli",
+        "distractor",
+    ],
+    "affect_arousal": [
+        "arousal",
+        "affective",
+        "emotional",
+        "emotional stimuli",
+        "emotional responses",
+    ],
+    "affect_valence": [
+        "valence",
+        "negative affect",
+        "disgust",
+        "fear",
+        "anxiety",
+    ],
+    "memory": [
+        "encoding",
+        "subsequent memory",
+        "episodic memory",
+        "semantic memory",
+        "recall",
+        "recognition",
+        "familiarity",
     ],
     "reward": [
         "reward",
-        "value",
-        "valuation",
-        "incentive",
+        "reward anticipation",
         "motivation",
+        "value",
+        "incentive",
         "preference",
-        "reinforcement",
-    ],
-    "memory": [
-        "memory",
-        "encoding",
-        "recall",
-        "recognition",
-        "episodic",
-        "retrieval",
-        "familiarity",
-    ],
-    "emotion": [
-        "emotion",
-        "emotional",
-        "affective",
-        "affect",
-        "arousal",
-        "valence",
-        "pleasant",
-        "unpleasant",
+        "approach",
+        "monetary reward",
+        "craving",
     ],
     "social": [
-        "social",
+        "social cognition",
         "mentalizing",
-        "self",
-        "self referential",
-        "person",
-        "people",
+        "theory mind",
         "face",
-        "faces",
-        "theory of mind",
+        "gaze",
+        "self referential",
+        "empathy",
+        "social",
     ],
-    "aversion": [
-        "fear",
-        "threat",
-        "anxiety",
-        "pain",
-        "disgust",
-        "negative",
-        "aversive",
-    ],
-    "language": [
+    "cog_clarity": [
         "language",
-        "speech",
         "semantic",
+        "sentence comprehension",
         "comprehension",
-        "narrative",
-        "story",
-        "sentence",
     ],
-    "action": [
-        "action",
-        "motor",
-        "movement",
-        "hand",
-        "gesture",
-        "execution",
+    "cog_load": [
+        "working memory",
+        "cognitive control",
+        "executive function",
+        "inhibition",
+        "task difficulty",
     ],
 }
 
 NEUROSYNTH_MARKETING_FALLBACK_TERMS = [
     "attention",
-    "attentional",
-    "salience",
-    "orienting",
-    "target",
     "visual attention",
-    "reward",
-    "value",
-    "incentive",
-    "motivation",
-    "preference",
-    "reinforcement",
-    "memory",
-    "encoding",
-    "recall",
-    "recognition",
-    "episodic",
-    "retrieval",
-    "familiarity",
-    "emotion regulation",
-    "emotional",
-    "affective",
-    "affect",
+    "attentional",
+    "orienting",
+    "target detection",
+    "salience",
+    "visual stimuli",
+    "distractor",
     "arousal",
+    "affective",
+    "emotional",
+    "emotional stimuli",
+    "emotional responses",
     "valence",
-    "pleasant",
-    "unpleasant",
-    "social",
-    "mentalizing",
-    "self report",
-    "self referential",
-    "person",
-    "people",
-    "face",
-    "faces",
+    "negative affect",
+    "disgust",
     "fear",
     "anxiety",
-    "pain",
-    "disgust",
-    "negative",
-    "aversive",
+    "encoding",
+    "subsequent memory",
+    "episodic memory",
+    "semantic memory",
+    "recall",
+    "recognition",
+    "familiarity",
+    "reward",
+    "reward anticipation",
+    "motivation",
+    "value",
+    "incentive",
+    "preference",
+    "approach",
+    "monetary reward",
+    "craving",
+    "social cognition",
+    "mentalizing",
+    "theory mind",
+    "face",
+    "gaze",
+    "self referential",
+    "empathy",
+    "social",
     "language",
-    "speech",
     "semantic",
+    "sentence comprehension",
     "comprehension",
-    "sentence",
-    "action",
-    "motor",
-    "movement",
-    "hand",
-    "execution",
+    "working memory",
+    "cognitive control",
+    "executive function",
+    "inhibition",
+    "task difficulty",
 ]
 
 
@@ -193,7 +188,7 @@ class ResolvedFeature:
 
 @dataclass(frozen=True)
 class ResolvedFeatureSet:
-    """Resolved marketing_v1 features and missing aliases."""
+    """Resolved marketing preset features and missing aliases."""
 
     preset: str
     resolved: list[ResolvedFeature]
@@ -279,7 +274,7 @@ def validate_n_cores(n_cores: int) -> None:
 
 
 class FeatureResolver:
-    """Resolve restricted marketing_v1 aliases to real Neurosynth features."""
+    """Resolve restricted marketing preset aliases to real Neurosynth features."""
 
     def __init__(self, preset: dict[str, list[str]], max_features: int) -> None:
         if max_features > MAX_RESOLVED_FEATURES:
@@ -315,20 +310,20 @@ class FeatureResolver:
                 )
 
         resolved_set = ResolvedFeatureSet(
-            preset="marketing_v1",
+            preset=MARKETING_PRESET_NAME,
             resolved=resolved,
             missing_aliases={key: value for key, value in missing.items() if value},
         )
         unique_count = len(resolved_set.unique_features)
         if unique_count == 0:
-            raise RuntimeError("No marketing_v1 aliases matched Neurosynth features.")
+            raise RuntimeError(f"No {MARKETING_PRESET_NAME} aliases matched Neurosynth features.")
         if unique_count > self.max_features:
             raise RuntimeError(
                 f"Resolved {unique_count} unique features, but maximum allowed is "
                 f"{self.max_features}. Reduce aliases or lower --max-resolved-features."
             )
 
-        LOGGER.info("Resolved %d unique marketing_v1 features.", unique_count)
+        LOGGER.info("Resolved %d unique %s features.", unique_count, MARKETING_PRESET_NAME)
         return resolved_set
 
     @staticmethod
@@ -557,7 +552,7 @@ def resolved_features_payload(
     return {
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "preset": resolved.preset,
-        "groups": list(MARKETING_V1.keys()),
+        "groups": list(MARKETING_PRESET.keys()),
         "max_resolved_features": MAX_RESOLVED_FEATURES,
         "feature_source": feature_source,
         "n_annotation_features": annotation_feature_count,
@@ -574,7 +569,7 @@ def fit_restricted_decoder(
     frequency_threshold: float,
     n_cores: int,
 ):
-    """Fit a restricted NiMARE decoder only for marketing_v1 features."""
+    """Fit a restricted NiMARE decoder only for the configured marketing preset."""
 
     from nimare.decode.continuous import CorrelationDecoder
     from nimare.meta.cbma import mkda
@@ -661,7 +656,7 @@ def build_reference_maps(args: argparse.Namespace) -> None:
     individual_dir.mkdir(parents=True, exist_ok=True)
 
     fsaverage = datasets.fetch_surf_fsaverage(mesh="fsaverage5")
-    resolver = FeatureResolver(MARKETING_V1, max_features=args.max_resolved_features)
+    resolver = FeatureResolver(MARKETING_PRESET, max_features=args.max_resolved_features)
 
     if args.reference_source == "neurosynth_precomputed":
         cache_dir = args.neurosynth_cache_dir or (args.references_dir / "neurosynth_api_cache")
@@ -770,7 +765,7 @@ def build_reference_maps(args: argparse.Namespace) -> None:
         "vertices_per_hemisphere": FSAVERAGE5_VERTICES_PER_HEMISPHERE,
         "features": features,
         "features_hash": sha256_json(features),
-        "preset": "marketing_v1",
+        "preset": MARKETING_PRESET_NAME,
         "max_resolved_features": args.max_resolved_features,
         "projection_radius": args.projection_radius,
         "projection_interpolation": args.projection_interpolation,

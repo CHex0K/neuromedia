@@ -1,0 +1,73 @@
+{
+  "task_id": "marketing-groups-v2",
+  "overall_verdict": "PASS",
+  "criteria": [
+    {
+      "id": "AC1",
+      "status": "PASS",
+      "reason": "Fresh verifier parsed marketing_surface_decoder.py and confirmed the marketing_v2 preset has the expected 8 groups, 51 configured terms, and no duplicate terms."
+    },
+    {
+      "id": "AC2",
+      "status": "PASS",
+      "reason": "Fresh verifier confirmed MARKETING_PRESET_NAME=marketing_v2, REFERENCE_VERSION=marketing_surface_v2, and the notebook uses the marketing_v2 reference cache path."
+    },
+    {
+      "id": "AC3",
+      "status": "PASS",
+      "reason": "Fresh verifier parsed marketing_report.py and confirmed GROUP_ORDER, GROUP_LABELS, and MARKETING_TERMS reflect the new groups without stale legacy labels."
+    },
+    {
+      "id": "AC4",
+      "status": "PASS",
+      "reason": "Fresh verifier parsed the notebook, checked embedded decoder/report base64 payloads, and confirmed the marketing_v2 cache path."
+    },
+    {
+      "id": "AC5",
+      "status": "PASS",
+      "reason": "Fresh verifier fetched live Neurosynth term_names and ran FeatureResolver, confirming 51 resolved features, zero missing aliases, and the 60-feature limit was not exceeded."
+    },
+    {
+      "id": "AC6",
+      "status": "PASS",
+      "reason": "Fresh verifier reran py_compile and confirmed the notebook still contains the batch-mode path handling and report download output."
+    }
+  ],
+  "commands_run": [
+    {
+      "command": "python -m py_compile tribe_nimare_interpreter.py marketing_surface_decoder.py marketing_report.py",
+      "exit_code": 0,
+      "artifact": ".agent/tasks/marketing-groups-v2/raw/build.txt"
+    },
+    {
+      "command": "Notebook JSON parse and code-cell AST parse",
+      "exit_code": 0,
+      "artifact": ".agent/tasks/marketing-groups-v2/raw/test-unit.txt"
+    },
+    {
+      "command": "Notebook embedded payload and cache path assertions",
+      "exit_code": 0,
+      "artifact": ".agent/tasks/marketing-groups-v2/raw/test-integration.txt"
+    },
+    {
+      "command": "Neurosynth term_names FeatureResolver proof",
+      "exit_code": 0,
+      "artifact": ".agent/tasks/marketing-groups-v2/raw/lint.txt"
+    },
+    {
+      "command": "Fresh verifier script",
+      "exit_code": 0,
+      "artifact": ".agent/tasks/marketing-groups-v2/raw/verify.txt"
+    }
+  ],
+  "artifacts_used": [
+    ".agent/tasks/marketing-groups-v2/spec.md",
+    ".agent/tasks/marketing-groups-v2/evidence.md",
+    ".agent/tasks/marketing-groups-v2/evidence.json",
+    ".agent/tasks/marketing-groups-v2/raw/build.txt",
+    ".agent/tasks/marketing-groups-v2/raw/test-unit.txt",
+    ".agent/tasks/marketing-groups-v2/raw/test-integration.txt",
+    ".agent/tasks/marketing-groups-v2/raw/lint.txt",
+    ".agent/tasks/marketing-groups-v2/raw/verify.txt"
+  ]
+}
