@@ -1,0 +1,2 @@
+﻿$ python -m py_compile tribe_nimare_interpreter.py hybrid_transcriber.py marketing_report.py marketing_surface_decoder.py .agent\tasks\hybrid-transcription\raw\notebook_cell_1.py
+exit_code=0

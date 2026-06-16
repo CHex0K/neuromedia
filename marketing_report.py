@@ -353,17 +353,20 @@ def load_segments(tribe_dir: Path) -> pd.DataFrame:
     return pd.read_csv(segments_path, sep="\t")
 
 
-def load_sidecar_transcript(input_media: Path | None) -> pd.DataFrame:
-    """Load transcript/caption text from a sidecar file next to the input media."""
-
-    if input_media is None:
-        return pd.DataFrame()
+def load_report_transcript(tribe_dir: Path, input_media: Path | None) -> pd.DataFrame:
+    """Load transcript text from TRIBE output or a sidecar next to input media."""
 
     candidates = [
-        input_media.with_suffix(".tsv"),
-        input_media.with_suffix(".csv"),
-        input_media.with_suffix(".txt"),
+        tribe_dir / "tribe_transcript.tsv",
     ]
+    if input_media is not None:
+        candidates.extend(
+            [
+                input_media.with_suffix(".tsv"),
+                input_media.with_suffix(".csv"),
+                input_media.with_suffix(".txt"),
+            ]
+        )
     for path in candidates:
         if not path.is_file():
             continue
@@ -374,7 +377,7 @@ def load_sidecar_transcript(input_media: Path | None) -> pd.DataFrame:
                 return pd.read_csv(path)
             return pd.DataFrame({"text": [path.read_text(encoding="utf-8")]})
         except Exception as exc:
-            LOGGER.warning("Could not read sidecar transcript %s: %s", path, exc)
+            LOGGER.warning("Could not read report transcript %s: %s", path, exc)
     return pd.DataFrame()
 
 
@@ -1342,7 +1345,7 @@ def build_html(
 ) -> str:
     """Assemble the full self-contained HTML report."""
 
-    transcript = load_sidecar_transcript(input_media)
+    transcript = load_report_transcript(tribe_dir, input_media)
     term_features = resolved_term_features(terms)
     segment_rows = build_segment_rows(
         predictions=predictions,
@@ -1588,7 +1591,7 @@ def generate_report(
     predictions, activity = load_predictions(tribe_dir)
     scores, terms, decoder_report = load_decoder_tables(surface_dir)
     segments = load_segments(tribe_dir)
-    transcript = load_sidecar_transcript(input_media)
+    transcript = load_report_transcript(tribe_dir, input_media)
     term_features = resolved_term_features(terms)
     segment_table = build_segment_table_frame(
         scores=scores,

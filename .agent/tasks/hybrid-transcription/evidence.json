@@ -1,0 +1,114 @@
+{
+  "task_id": "hybrid-transcription",
+  "overall_status": "PASS",
+  "updated_at": "2026-06-15T12:30:00+03:00",
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "text": "Add a repo-local hybrid transcription implementation based on new_transc.txt that uses GigaAM for word timings and an OpenRouter multimodal correction model for text correction/translation.",
+      "status": "PASS",
+      "proof": [
+        "hybrid_transcriber.py implements GigaAM timing, OpenRouter correction/translation, and TRIBE Word event formatting.",
+        "requirements.txt includes gigaam==0.1.0 and requests>=2.31,<3.",
+        ".agent/tasks/hybrid-transcription/raw/build.txt shows py_compile exit_code=0."
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC2",
+      "text": "The hybrid pipeline must preserve word-level start, end, and duration from the timing model and must not let the correction/translation model add, remove, split, or reorder word IDs.",
+      "status": "PASS",
+      "proof": [
+        "hybrid_transcriber.py only changes text fields after correction and preserves timing fields.",
+        "validate_and_index_corrections() enforces exact returned ID order.",
+        ".agent/tasks/hybrid-transcription/raw/test-unit.txt proves wrong-order correction fails."
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC3",
+      "text": "The correction model must support a configurable target language, including English (en), so corrected text can be translated before being passed to TRIBE.",
+      "status": "PASS",
+      "proof": [
+        "hybrid_transcriber.py has target_language_instruction() and target_language pipeline arguments.",
+        "tribe_nimare_interpreter.py exposes --transcript-target-language.",
+        "run_surface_decoder_colab.ipynb exposes transcript_target_language_input.",
+        ".agent/tasks/hybrid-transcription/raw/test-unit.txt validates en/ru instructions."
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC4",
+      "text": "tribe_nimare_interpreter.py must support an explicit transcription backend option. When hybrid mode is selected, it must avoid TRIBE's default WhisperX path and fail clearly if required dependencies or API credentials are missing.",
+      "status": "PASS",
+      "proof": [
+        "tribe_nimare_interpreter.py exposes --transcript-backend {tribe,hybrid}.",
+        "Hybrid mode requires OPENROUTER_API_KEY and raises a clear error if absent.",
+        "Hybrid path imports hybrid_transcriber.transcribe_video_for_tribe.",
+        "Hybrid path does not call ExtractWordsFromAudio.",
+        ".agent/tasks/hybrid-transcription/raw/lint.txt asserts no ExtractWordsFromAudio and no --openrouter-api-key CLI flag."
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC5",
+      "text": "Hybrid mode must preserve video and audio modalities for TRIBE inference. It may replace only the word/text events, not degrade the run to text-only inference.",
+      "status": "PASS",
+      "proof": [
+        "prepare_hybrid_transcript_events() creates a Video event and hybrid Word events.",
+        "Hybrid preprocessing uses ExtractAudioFromVideo and chunks Audio and Video events.",
+        ".agent/tasks/hybrid-transcription/raw/lint.txt asserts ExtractAudioFromVideo(), AddText(), and AddContextToWords markers."
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC6",
+      "text": "The Colab/Gradio notebook must expose the hybrid transcription controls, pass them into the TRIBE run, write the new project file to /content/neuromedia, and include the corrected transcript in downloadable/report artifacts where practical.",
+      "status": "PASS",
+      "proof": [
+        "run_surface_decoder_colab.ipynb exposes OpenRouter key, backend, target language, GigaAM model, and OpenRouter model controls.",
+        "The notebook writes hybrid_transcriber.py to /content/neuromedia.",
+        "The notebook passes hybrid CLI args to tribe_nimare_interpreter.py.",
+        "marketing_report.py loads tribe_transcript.tsv before sidecar transcript files.",
+        ".agent/tasks/hybrid-transcription/raw/test-integration.txt confirms notebook markers and embedded payloads."
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC7",
+      "text": "The project must keep UTF-8 handling explicit and update embedded notebook base64 payloads so Colab runs the same code as the local repo.",
+      "status": "PASS",
+      "proof": [
+        "Modified Python files start with # -*- coding: utf-8 -*-.",
+        "New and modified text reads/writes specify encoding=\"utf-8\".",
+        ".agent/tasks/hybrid-transcription/raw/test-integration.txt confirms embedded payloads match local files.",
+        ".agent/tasks/hybrid-transcription/raw/lint.txt checks UTF-8 headers."
+      ],
+      "gaps": []
+    }
+  ],
+  "changed_files": [
+    "hybrid_transcriber.py",
+    "tribe_nimare_interpreter.py",
+    "marketing_report.py",
+    "requirements.txt",
+    "run_surface_decoder_colab.ipynb",
+    ".agent/tasks/hybrid-transcription/spec.md",
+    ".agent/tasks/hybrid-transcription/evidence.md",
+    ".agent/tasks/hybrid-transcription/evidence.json",
+    ".agent/tasks/hybrid-transcription/raw/build.txt",
+    ".agent/tasks/hybrid-transcription/raw/test-unit.txt",
+    ".agent/tasks/hybrid-transcription/raw/test-integration.txt",
+    ".agent/tasks/hybrid-transcription/raw/lint.txt"
+  ],
+  "commands_for_fresh_verifier": [
+    "python -m py_compile tribe_nimare_interpreter.py hybrid_transcriber.py marketing_report.py marketing_surface_decoder.py .agent\\tasks\\hybrid-transcription\\raw\\notebook_cell_1.py",
+    "python <unit check equivalent to .agent/tasks/hybrid-transcription/raw/test-unit.txt>",
+    "python <notebook payload check equivalent to .agent/tasks/hybrid-transcription/raw/test-integration.txt>",
+    "python <static lint check equivalent to .agent/tasks/hybrid-transcription/raw/lint.txt>"
+  ],
+  "known_gaps": [
+    "No live Colab/GPU run was performed in this local verification pass.",
+    "No live GigaAM inference or OpenRouter request was performed because that requires model downloads, media input, and API credentials."
+  ]
+}

@@ -1,0 +1,770 @@
+import os
+import re
+import json
+import base64
+import mimetypes
+import subprocess
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+import pandas as pd
+import requests
+
+
+# ----------------------------
+# FFmpeg helpers
+# ----------------------------
+
+def run_cmd(cmd: List[str]) -> None:
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(
+            "Command failed:\n"
+            + " ".join(cmd)
+            + "\n\nSTDOUT:\n"
+            + result.stdout
+            + "\n\nSTDERR:\n"
+            + result.stderr
+        )
+
+
+def get_media_duration_sec(path: str | Path) -> float:
+    path = Path(path)
+    cmd = [
+        "ffprobe",
+        "-v", "error",
+        "-show_entries", "format=duration",
+        "-of", "default=noprint_wrappers=1:nokey=1",
+        str(path),
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    return float(result.stdout.strip())
+
+
+def extract_audio_16k_mono(video_path: str | Path, wav_path: str | Path) -> Path:
+    video_path = Path(video_path)
+    wav_path = Path(wav_path)
+    wav_path.parent.mkdir(parents=True, exist_ok=True)
+
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-i", str(video_path),
+        "-vn",
+        "-acodec", "pcm_s16le",
+        "-ar", "16000",
+        "-ac", "1",
+        str(wav_path),
+    ]
+    run_cmd(cmd)
+    return wav_path
+
+
+def extract_audio_segment(
+    wav_path: str | Path,
+    out_wav_path: str | Path,
+    start_sec: float,
+    duration_sec: float,
+) -> Path:
+    wav_path = Path(wav_path)
+    out_wav_path = Path(out_wav_path)
+    out_wav_path.parent.mkdir(parents=True, exist_ok=True)
+
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-ss", f"{start_sec:.3f}",
+        "-t", f"{duration_sec:.3f}",
+        "-i", str(wav_path),
+        "-acodec", "pcm_s16le",
+        "-ar", "16000",
+        "-ac", "1",
+        str(out_wav_path),
+    ]
+    run_cmd(cmd)
+    return out_wav_path
+
+
+def extract_video_segment_for_gemini(
+    video_path: str | Path,
+    out_video_path: str | Path,
+    start_sec: float,
+    duration_sec: float,
+    height: int = 360,
+) -> Path:
+    """
+    Делаем маленький mp4-клип, чтобы не слать в OpenRouter огромный ролик.
+    Оставляем аудио, потому что Gemini должен сверять слова с речью.
+    """
+    video_path = Path(video_path)
+    out_video_path = Path(out_video_path)
+    out_video_path.parent.mkdir(parents=True, exist_ok=True)
+
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-ss", f"{start_sec:.3f}",
+        "-t", f"{duration_sec:.3f}",
+        "-i", str(video_path),
+        "-vf", f"scale=-2:{height}",
+        "-c:v", "libx264",
+        "-preset", "veryfast",
+        "-crf", "28",
+        "-c:a", "aac",
+        "-b:a", "64k",
+        "-movflags", "+faststart",
+        str(out_video_path),
+    ]
+    run_cmd(cmd)
+    return out_video_path
+
+
+# ----------------------------
+# GigaAM parsing
+# ----------------------------
+
+def _get_attr_or_key(obj: Any, name: str, default: Any = None) -> Any:
+    if isinstance(obj, dict):
+        return obj.get(name, default)
+    return getattr(obj, name, default)
+
+
+def parse_gigaam_words(result: Any) -> Tuple[str, List[Dict[str, Any]]]:
+    """
+    Поддерживает несколько возможных форматов результата GigaAM:
+    - result.text + result.words
+    - dict с ключами text/words
+    """
+    full_text = _get_attr_or_key(result, "text", "")
+
+    words = _get_attr_or_key(result, "words", [])
+    parsed = []
+
+    for w in words:
+        text = (
+            _get_attr_or_key(w, "text", None)
+            or _get_attr_or_key(w, "word", None)
+            or _get_attr_or_key(w, "token", "")
+        )
+
+        start = _get_attr_or_key(w, "start", None)
+        end = _get_attr_or_key(w, "end", None)
+
+        if start is None or end is None:
+            continue
+
+        parsed.append({
+            "text": str(text).strip(),
+            "start": float(start),
+            "end": float(end),
+            "score": _get_attr_or_key(w, "score", None),
+        })
+
+    return str(full_text), parsed
+
+
+def transcribe_video_with_gigaam_words(
+    video_path: str | Path,
+    output_dir: str | Path = "hybrid_out",
+    gigaam_model_name: str = "v3_e2e_rnnt",
+    chunk_sec: float = 22.0,
+    language: str = "ru",
+) -> pd.DataFrame:
+    """
+    GigaAM .transcribe обычно удобнее запускать на коротких кусках.
+    Поэтому:
+    1. достаём полный wav;
+    2. режем wav на куски;
+    3. каждый кусок прогоняем через GigaAM word_timestamps=True;
+    4. прибавляем offset к start/end.
+
+    Возвращает DataFrame:
+    id, type, text, original_text, start, end, duration, sequence_id, sentence, language
+    """
+
+    import gigaam
+
+    video_path = Path(video_path)
+    output_dir = Path(output_dir)
+    chunks_dir = output_dir / "gigaam_audio_chunks"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    chunks_dir.mkdir(parents=True, exist_ok=True)
+
+    full_wav_path = output_dir / f"{video_path.stem}.16k.wav"
+    extract_audio_16k_mono(video_path, full_wav_path)
+
+    duration = get_media_duration_sec(full_wav_path)
+
+    model = gigaam.load_model(gigaam_model_name)
+
+    rows = []
+    word_id = 0
+    sequence_id = 0
+
+    start = 0.0
+    while start < duration:
+        current_duration = min(chunk_sec, duration - start)
+        chunk_wav = chunks_dir / f"chunk_{sequence_id:05d}_{start:.3f}.wav"
+
+        extract_audio_segment(
+            wav_path=full_wav_path,
+            out_wav_path=chunk_wav,
+            start_sec=start,
+            duration_sec=current_duration,
+        )
+
+        result = model.transcribe(
+            str(chunk_wav),
+            word_timestamps=True,
+        )
+
+        chunk_text, words = parse_gigaam_words(result)
+
+        for w in words:
+            local_start = float(w["start"])
+            local_end = float(w["end"])
+
+            global_start = start + local_start
+            global_end = start + local_end
+
+            if not w["text"]:
+                continue
+
+            rows.append({
+                "id": word_id,
+                "type": "Word",
+                "text": w["text"],
+                "original_text": w["text"],
+                "start": global_start,
+                "end": global_end,
+                "duration": global_end - global_start,
+                "sequence_id": sequence_id,
+                "sentence": chunk_text,
+                "language": language,
+                "gigaam_score": w.get("score"),
+            })
+
+            word_id += 1
+
+        sequence_id += 1
+        start += chunk_sec
+
+    df = pd.DataFrame(rows)
+
+    raw_path = output_dir / "gigaam_raw_words.tsv"
+    df.to_csv(raw_path, sep="\t", index=False)
+
+    print(f"Saved GigaAM raw words to: {raw_path}")
+    return df
+
+
+# ----------------------------
+# OpenRouter Gemini correction
+# ----------------------------
+
+def file_to_data_url(path: str | Path) -> str:
+    path = Path(path)
+    mime_type, _ = mimetypes.guess_type(str(path))
+    if mime_type is None:
+        mime_type = "video/mp4"
+
+    with open(path, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode("utf-8")
+
+    return f"data:{mime_type};base64,{b64}"
+
+
+def extract_json_object(text: str) -> Dict[str, Any]:
+    text = text.strip()
+
+    if text.startswith("```"):
+        text = re.sub(r"^```json\s*", "", text)
+        text = re.sub(r"^```\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
+        text = text.strip()
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        match = re.search(r"\{.*\}", text, flags=re.DOTALL)
+        if not match:
+            raise
+        return json.loads(match.group(0))
+
+
+def make_word_windows(
+    words_df: pd.DataFrame,
+    max_words: int = 80,
+    max_seconds: float = 20.0,
+) -> List[pd.DataFrame]:
+    """
+    Группируем слова в окна для Gemini.
+    Ограничиваем и число слов, и длительность.
+    """
+    windows = []
+    current_rows = []
+    current_start = None
+
+    for _, row in words_df.sort_values("start").iterrows():
+        if current_start is None:
+            current_start = float(row["start"])
+
+        would_be_too_many_words = len(current_rows) >= max_words
+        would_be_too_long = float(row["end"]) - current_start > max_seconds
+
+        if current_rows and (would_be_too_many_words or would_be_too_long):
+            windows.append(pd.DataFrame(current_rows))
+            current_rows = []
+            current_start = float(row["start"])
+
+        current_rows.append(row.to_dict())
+
+    if current_rows:
+        windows.append(pd.DataFrame(current_rows))
+
+    return windows
+
+
+def call_openrouter_gemini_word_corrector(
+    video_clip_path: str | Path,
+    words: List[Dict[str, Any]],
+    api_key: Optional[str] = None,
+    model: str = "google/gemini-3.5-flash",
+    temperature: float = 0.0,
+    max_tokens: int = 4096,
+) -> Dict[str, Any]:
+    """
+    Отправляет в Gemini:
+    - короткий фрагмент видео;
+    - список слов GigaAM с id/start/end/text.
+
+    Gemini должен вернуть ровно тот же id-list, только с corrected_text.
+    """
+
+    api_key = api_key or os.environ.get("OPENROUTER_API_KEY")
+    if not api_key:
+        raise RuntimeError("Передай api_key или задай OPENROUTER_API_KEY")
+
+    video_data_url = file_to_data_url(video_clip_path)
+
+    compact_words = [
+        {
+            "id": int(w["id"]),
+            "start": round(float(w["start"]), 3),
+            "end": round(float(w["end"]), 3),
+            "text": str(w["text"]),
+        }
+        for w in words
+    ]
+
+    prompt = f"""
+Ты редактор русской ASR-транскрипции.
+
+У тебя есть:
+1. Короткий фрагмент видео с аудио.
+2. Список слов, распознанных моделью GigaAM.
+3. У каждого слова есть id, start, end, text.
+
+Задача:
+Исправь только ошибки распознавания в поле text.
+
+КРИТИЧЕСКИ ВАЖНЫЕ ПРАВИЛА:
+- Верни РОВНО столько же элементов, сколько во входном списке.
+- Верни те же id, в том же порядке.
+- НЕ меняй start и end.
+- НЕ добавляй новые слова.
+- НЕ удаляй слова.
+- НЕ объединяй несколько id в один.
+- НЕ дели один id на несколько слов.
+- Если слово нормальное, оставь его без изменений.
+- Исправляй только очевидные ошибки на слух или по контексту видео.
+- Пунктуацию можно слегка поправлять внутри corrected_text.
+- Если не уверен, оставь исходное слово.
+- corrected_text должен быть русским, если речь русская.
+- Не переводи на английский.
+- Не описывай визуальный ряд.
+
+Входные слова:
+{json.dumps(compact_words, ensure_ascii=False, indent=2)}
+
+Верни JSON строго такого вида:
+{{
+  "items": [
+    {{
+      "id": 0,
+      "corrected_text": "слово",
+      "action": "keep|replace",
+      "confidence": 0.0,
+      "reason": "кратко"
+    }}
+  ]
+}}
+""".strip()
+
+    schema = {
+        "type": "object",
+        "properties": {
+            "items": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "integer"},
+                        "corrected_text": {"type": "string"},
+                        "action": {"type": "string", "enum": ["keep", "replace"]},
+                        "confidence": {"type": "number"},
+                        "reason": {"type": "string"},
+                    },
+                    "required": [
+                        "id",
+                        "corrected_text",
+                        "action",
+                        "confidence",
+                        "reason",
+                    ],
+                    "additionalProperties": False,
+                },
+            }
+        },
+        "required": ["items"],
+        "additionalProperties": False,
+    }
+
+    payload = {
+        "model": model,
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {
+                        "type": "video_url",
+                        "video_url": {
+                            "url": video_data_url,
+                        },
+                    },
+                ],
+            }
+        ],
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "word_corrections",
+                "strict": True,
+                "schema": schema,
+            },
+        },
+    }
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+
+    response = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers=headers,
+        json=payload,
+        timeout=300,
+    )
+
+    if response.status_code != 200:
+        raise RuntimeError(
+            f"OpenRouter error {response.status_code}:\n{response.text}"
+        )
+
+    data = response.json()
+    content = data["choices"][0]["message"]["content"]
+
+    parsed = extract_json_object(content)
+    parsed["_raw_model_text"] = content
+    return parsed
+
+
+def validate_and_index_corrections(
+    corrections: Dict[str, Any],
+    expected_ids: List[int],
+) -> Dict[int, Dict[str, Any]]:
+    items = corrections.get("items", [])
+    by_id = {}
+
+    for item in items:
+        if "id" not in item:
+            continue
+        by_id[int(item["id"])] = item
+
+    expected_set = set(expected_ids)
+    got_set = set(by_id.keys())
+
+    if expected_set != got_set:
+        missing = sorted(expected_set - got_set)
+        extra = sorted(got_set - expected_set)
+        raise ValueError(
+            f"Gemini returned wrong ids. Missing={missing[:20]}, Extra={extra[:20]}"
+        )
+
+    return by_id
+
+
+def correct_gigaam_words_with_gemini(
+    video_path: str | Path,
+    words_df: pd.DataFrame,
+    output_dir: str | Path = "hybrid_out",
+    api_key: Optional[str] = None,
+    model: str = "google/gemini-3.5-flash",
+    max_words_per_request: int = 80,
+    max_seconds_per_request: float = 20.0,
+    context_pad_sec: float = 0.7,
+    min_replace_confidence: float = 0.55,
+    save_debug_json: bool = True,
+) -> pd.DataFrame:
+    """
+    Берёт таблицу GigaAM и исправляет text через Gemini,
+    сохраняя исходные start/end/duration.
+
+    Важный принцип:
+    - original_text остаётся как GigaAM;
+    - text становится исправленным вариантом;
+    - start/end/duration не меняются.
+    """
+
+    video_path = Path(video_path)
+    output_dir = Path(output_dir)
+    clips_dir = output_dir / "gemini_video_clips"
+    debug_dir = output_dir / "gemini_debug"
+    clips_dir.mkdir(parents=True, exist_ok=True)
+    debug_dir.mkdir(parents=True, exist_ok=True)
+
+    corrected_df = words_df.copy()
+
+    if "original_text" not in corrected_df.columns:
+        corrected_df["original_text"] = corrected_df["text"]
+
+    corrected_df["gemini_action"] = "not_processed"
+    corrected_df["gemini_confidence"] = None
+    corrected_df["gemini_reason"] = ""
+
+    windows = make_word_windows(
+        corrected_df,
+        max_words=max_words_per_request,
+        max_seconds=max_seconds_per_request,
+    )
+
+    video_duration = get_media_duration_sec(video_path)
+
+    for window_idx, window_df in enumerate(windows):
+        expected_ids = [int(x) for x in window_df["id"].tolist()]
+
+        start_sec = max(0.0, float(window_df["start"].min()) - context_pad_sec)
+        end_sec = min(video_duration, float(window_df["end"].max()) + context_pad_sec)
+        duration_sec = max(0.1, end_sec - start_sec)
+
+        clip_path = clips_dir / f"clip_{window_idx:05d}_{start_sec:.3f}_{end_sec:.3f}.mp4"
+
+        extract_video_segment_for_gemini(
+            video_path=video_path,
+            out_video_path=clip_path,
+            start_sec=start_sec,
+            duration_sec=duration_sec,
+            height=360,
+        )
+
+        print(
+            f"[Gemini] window {window_idx + 1}/{len(windows)}: "
+            f"{len(expected_ids)} words, {start_sec:.2f}-{end_sec:.2f}s"
+        )
+
+        try:
+            corrections = call_openrouter_gemini_word_corrector(
+                video_clip_path=clip_path,
+                words=window_df.to_dict("records"),
+                api_key=api_key,
+                model=model,
+            )
+
+            if save_debug_json:
+                debug_path = debug_dir / f"corrections_{window_idx:05d}.json"
+                with open(debug_path, "w", encoding="utf-8") as f:
+                    json.dump(corrections, f, ensure_ascii=False, indent=2)
+
+            by_id = validate_and_index_corrections(corrections, expected_ids)
+
+        except Exception as e:
+            print(f"[Gemini] failed on window {window_idx}: {e}")
+            corrected_df.loc[
+                corrected_df["id"].isin(expected_ids),
+                "gemini_action",
+            ] = "failed"
+            corrected_df.loc[
+                corrected_df["id"].isin(expected_ids),
+                "gemini_reason",
+            ] = str(e)
+            continue
+
+        for word_id in expected_ids:
+            item = by_id[word_id]
+
+            corrected_text = str(item.get("corrected_text", "")).strip()
+            action = str(item.get("action", "keep")).strip()
+            confidence = float(item.get("confidence", 0.0))
+            reason = str(item.get("reason", "")).strip()
+
+            row_mask = corrected_df["id"] == word_id
+            original_text = str(corrected_df.loc[row_mask, "text"].iloc[0])
+
+            # Защита: если Gemini не уверен или вернул пустоту — оставляем GigaAM.
+            if (
+                action == "replace"
+                and confidence >= min_replace_confidence
+                and corrected_text
+            ):
+                corrected_df.loc[row_mask, "text"] = corrected_text
+                corrected_df.loc[row_mask, "gemini_action"] = "replace"
+            else:
+                corrected_df.loc[row_mask, "text"] = original_text
+                corrected_df.loc[row_mask, "gemini_action"] = "keep"
+
+            corrected_df.loc[row_mask, "gemini_confidence"] = confidence
+            corrected_df.loc[row_mask, "gemini_reason"] = reason
+
+    corrected_df = rebuild_sentences_for_tribe(corrected_df)
+
+    out_path = output_dir / "gigaam_gemini_corrected_words.tsv"
+    corrected_df.to_csv(out_path, sep="\t", index=False)
+
+    print(f"Saved corrected words to: {out_path}")
+    return corrected_df
+
+
+# ----------------------------
+# TRIBE formatting
+# ----------------------------
+
+def join_words_ru(words: List[str]) -> str:
+    """
+    Собирает слова в строку, не ставя пробел перед пунктуацией.
+    """
+    text = " ".join([w for w in words if str(w).strip()])
+    text = re.sub(r"\s+([,.;:!?%)»])", r"\1", text)
+    text = re.sub(r"([«(])\s+", r"\1", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def rebuild_sentences_for_tribe(words_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    TRIBE-like поле sentence: даём каждому слову контекст куска.
+    Здесь sentence собирается из исправленных слов внутри sequence_id.
+    """
+    df = words_df.copy()
+
+    sequence_to_sentence = {}
+    for sequence_id, group in df.groupby("sequence_id", sort=True):
+        sentence = join_words_ru(group.sort_values("start")["text"].astype(str).tolist())
+        sequence_to_sentence[sequence_id] = sentence
+
+    df["sentence"] = df["sequence_id"].map(sequence_to_sentence)
+    df["duration"] = df["end"] - df["start"]
+
+    # Финальный порядок колонок, удобный для TRIBE.
+    preferred_cols = [
+        "id",
+        "type",
+        "text",
+        "original_text",
+        "start",
+        "end",
+        "duration",
+        "sequence_id",
+        "sentence",
+        "language",
+        "gigaam_score",
+        "gemini_action",
+        "gemini_confidence",
+        "gemini_reason",
+    ]
+
+    existing = [c for c in preferred_cols if c in df.columns]
+    rest = [c for c in df.columns if c not in existing]
+    return df[existing + rest]
+
+
+def make_tribe_events_dataframe(corrected_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Если TRIBE нужен минимальный DataFrame:
+    type, text, start, duration, sequence_id, sentence, language
+    """
+    cols = [
+        "type",
+        "text",
+        "start",
+        "duration",
+        "sequence_id",
+        "sentence",
+        "language",
+    ]
+    return corrected_df[cols].copy()
+
+
+# ----------------------------
+# Main pipeline
+# ----------------------------
+
+def transcribe_video_gigaam_then_fix_with_gemini_for_tribe(
+    video_path: str | Path,
+    output_dir: str | Path = "hybrid_out",
+    gigaam_model_name: str = "v3_e2e_rnnt",
+    openrouter_model: str = "google/gemini-3.5-flash",
+    openrouter_api_key: Optional[str] = None,
+    gigaam_chunk_sec: float = 22.0,
+    max_words_per_gemini_request: int = 80,
+    max_seconds_per_gemini_request: float = 20.0,
+    min_replace_confidence: float = 0.55,
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Полный пайплайн:
+    1. GigaAM даёт русские слова и тайминги.
+    2. Gemini смотрит видеофрагмент + список слов и исправляет text.
+    3. Тайминги остаются от GigaAM.
+    4. Возвращаем:
+       - corrected_df: расширенная таблица с отладочными полями;
+       - tribe_df: минимальная таблица для TRIBE.
+    """
+
+    video_path = Path(video_path)
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    gigaam_df = transcribe_video_with_gigaam_words(
+        video_path=video_path,
+        output_dir=output_dir,
+        gigaam_model_name=gigaam_model_name,
+        chunk_sec=gigaam_chunk_sec,
+        language="ru",
+    )
+
+    corrected_df = correct_gigaam_words_with_gemini(
+        video_path=video_path,
+        words_df=gigaam_df,
+        output_dir=output_dir,
+        api_key=openrouter_api_key,
+        model=openrouter_model,
+        max_words_per_request=max_words_per_gemini_request,
+        max_seconds_per_request=max_seconds_per_gemini_request,
+        min_replace_confidence=min_replace_confidence,
+    )
+
+    tribe_df = make_tribe_events_dataframe(corrected_df)
+
+    corrected_path = output_dir / "corrected_full_debug.tsv"
+    tribe_path = output_dir / "tribe_word_events.tsv"
+
+    corrected_df.to_csv(corrected_path, sep="\t", index=False)
+    tribe_df.to_csv(tribe_path, sep="\t", index=False)
+
+    print(f"Saved full debug table: {corrected_path}")
+    print(f"Saved TRIBE table: {tribe_path}")
+
+    return corrected_df, tribe_df
