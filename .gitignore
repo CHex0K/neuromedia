@@ -1,2 +1,8 @@
 .venv-deps-test
 __pycache__
+
+# Secrets — never commit
+readme
+readme.local.SECRET
+*.local.SECRET
+.env

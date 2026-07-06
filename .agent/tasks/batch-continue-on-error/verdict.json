@@ -1,0 +1,34 @@
+{
+  "task_id": "batch-continue-on-error",
+  "overall": "PASS",
+  "criteria": [
+    {
+      "id": "AC1",
+      "status": "PASS"
+    },
+    {
+      "id": "AC2",
+      "status": "PASS"
+    },
+    {
+      "id": "AC3",
+      "status": "PASS"
+    },
+    {
+      "id": "AC4",
+      "status": "PASS"
+    },
+    {
+      "id": "AC5",
+      "status": "PASS"
+    },
+    {
+      "id": "AC6",
+      "status": "PASS"
+    }
+  ],
+  "fresh_verification": [
+    ".agent/tasks/batch-continue-on-error/raw/fresh-verifier.txt",
+    ".agent/tasks/batch-continue-on-error/raw/fresh-git-diff-check.txt"
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "task_id": "batch-continue-on-error",
+  "overall": "PASS",
+  "criteria": [
+    {
+      "id": "AC1",
+      "status": "PASS",
+      "evidence": "Notebook static check confirms failed_reports accumulator and per-file 'Video failed; continuing' branch in batch loop."
+    },
+    {
+      "id": "AC2",
+      "status": "PASS",
+      "evidence": "Exception handler logs FAILED, failed stage, and traceback.format_exc() in run_surface_decoder_colab.ipynb."
+    },
+    {
+      "id": "AC3",
+      "status": "PASS",
+      "evidence": "Notebook static check confirms batch_failures.json is written and archived in the batch ZIP."
+    },
+    {
+      "id": "AC4",
+      "status": "PASS",
+      "evidence": "Notebook static check confirms all-failed RuntimeError before ZIP creation."
+    },
+    {
+      "id": "AC5",
+      "status": "PASS",
+      "evidence": "Notebook static check confirms 'if not batch_mode: raise' branch."
+    },
+    {
+      "id": "AC6",
+      "status": "PASS",
+      "evidence": "Notebook JSON parsing and UI-cell compile check passed."
+    }
+  ],
+  "raw_artifacts": [
+    ".agent/tasks/batch-continue-on-error/raw/git-diff-check.txt",
+    ".agent/tasks/batch-continue-on-error/raw/notebook-static-check.txt",
+    ".agent/tasks/batch-continue-on-error/raw/git-diff-stat.txt"
+  ]
+}
