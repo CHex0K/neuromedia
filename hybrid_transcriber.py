@@ -15,11 +15,13 @@ from __future__ import annotations
 
 import argparse
 import base64
+import contextlib
 import json
 import mimetypes
 import os
 import re
 import subprocess
+import time
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +33,33 @@ DEFAULT_GIGAAM_MODEL = "v3_e2e_rnnt"
 DEFAULT_OPENROUTER_MODEL = "google/gemini-3.5-flash"
 DEFAULT_TARGET_LANGUAGE = "en"
 OPENROUTER_CHAT_COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions"
+
+
+class OpenRouterCorrectionError(RuntimeError):
+    """OpenRouter correction failed with optional raw model text for debugging."""
+
+    def __init__(self, message: str, raw_model_text: str = "") -> None:
+        super().__init__(message)
+        self.raw_model_text = raw_model_text
+
+
+@contextlib.contextmanager
+def torch_load_legacy_checkpoint_context():
+    """Temporarily restore legacy torch.load behavior for trusted GigaAM checkpoints."""
+
+    import torch
+
+    original_load = torch.load
+
+    def compatible_load(*args: Any, **kwargs: Any) -> Any:
+        kwargs.setdefault("weights_only", False)
+        return original_load(*args, **kwargs)
+
+    torch.load = compatible_load
+    try:
+        yield
+    finally:
+        torch.load = original_load
 
 
 def run_cmd(cmd: list[str]) -> None:
@@ -223,6 +252,7 @@ def transcribe_video_with_gigaam_words(
     video_path: str | Path,
     output_dir: str | Path,
     gigaam_model_name: str = DEFAULT_GIGAAM_MODEL,
+    gigaam_download_root: str | Path | None = None,
     chunk_sec: float = 22.0,
     source_language: str = "ru",
 ) -> pd.DataFrame:
@@ -245,7 +275,14 @@ def transcribe_video_with_gigaam_words(
     full_wav_path = output_dir / f"{video_path.stem}.16k.wav"
     extract_audio_16k_mono(video_path, full_wav_path)
     duration = get_media_duration_sec(full_wav_path)
-    model = gigaam.load_model(gigaam_model_name)
+    load_kwargs: dict[str, Any] = {}
+    if gigaam_download_root is not None:
+        root = Path(gigaam_download_root)
+        root.mkdir(parents=True, exist_ok=True)
+        load_kwargs["download_root"] = str(root)
+        print(f"Using GigaAM download_root: {root}", flush=True)
+    with torch_load_legacy_checkpoint_context():
+        model = gigaam.load_model(gigaam_model_name, **load_kwargs)
 
     rows: list[dict[str, Any]] = []
     word_id = 0
@@ -360,6 +397,35 @@ def target_language_instruction(target_language: str) -> str:
     )
 
 
+def neuralset_language_name(language: str) -> str:
+    """Map common language codes to the names expected by neuralset/spaCy."""
+
+    normalized = str(language or "").strip().lower().replace("_", "-")
+    mapping = {
+        "en": "english",
+        "eng": "english",
+        "english": "english",
+        "fr": "french",
+        "fra": "french",
+        "fre": "french",
+        "french": "french",
+        "es": "spanish",
+        "spa": "spanish",
+        "spanish": "spanish",
+        "zh": "chinese",
+        "zh-cn": "chinese",
+        "zh-tw": "chinese",
+        "cmn": "chinese",
+        "chinese": "chinese",
+    }
+    if normalized not in mapping:
+        raise ValueError(
+            "TRIBE/neuralset text parser does not support target language "
+            f"{language!r}. Use one of: en, fr, es, zh."
+        )
+    return mapping[normalized]
+
+
 def call_openrouter_word_corrector(
     video_clip_path: str | Path,
     words: list[dict[str, Any]],
@@ -367,7 +433,8 @@ def call_openrouter_word_corrector(
     api_key: str | None = None,
     model: str = DEFAULT_OPENROUTER_MODEL,
     temperature: float = 0.0,
-    max_tokens: int = 4096,
+    max_tokens: int = 16384,
+    raw_dump_path: str | Path | None = None,
 ) -> dict[str, Any]:
     """Ask an OpenRouter multimodal model to correct/translate word text."""
 
@@ -411,6 +478,8 @@ Critical rules:
 - corrected_text may be a short translated token or phrase, but must stay aligned
   to that same id.
 - Do not describe the visual scene.
+- Output ONLY these two fields per item: id, corrected_text.
+- Do NOT include "action", "confidence", "reason" or any other extra fields. Keep the JSON minimal.
 
 Input words:
 {json.dumps(compact_words, ensure_ascii=False, indent=2)}
@@ -420,10 +489,7 @@ Return JSON only:
   "items": [
     {{
       "id": 0,
-      "corrected_text": "word",
-      "action": "keep|replace|translate",
-      "confidence": 0.0,
-      "reason": "brief reason"
+      "corrected_text": "word"
     }}
   ]
 }}
@@ -439,19 +505,10 @@ Return JSON only:
                     "properties": {
                         "id": {"type": "integer"},
                         "corrected_text": {"type": "string"},
-                        "action": {
-                            "type": "string",
-                            "enum": ["keep", "replace", "translate"],
-                        },
-                        "confidence": {"type": "number"},
-                        "reason": {"type": "string"},
                     },
                     "required": [
                         "id",
                         "corrected_text",
-                        "action",
-                        "confidence",
-                        "reason",
                     ],
                     "additionalProperties": False,
                 },
@@ -476,6 +533,7 @@ Return JSON only:
         ],
         "temperature": temperature,
         "max_tokens": max_tokens,
+        "reasoning": {"effort": "medium"},
         "response_format": {
             "type": "json_schema",
             "json_schema": {
@@ -494,10 +552,30 @@ Return JSON only:
         json=payload,
         timeout=300,
     )
+    if raw_dump_path is not None:
+        try:
+            Path(raw_dump_path).write_text(response.text, encoding="utf-8")
+        except Exception:
+            pass
     if response.status_code != 200:
         raise RuntimeError(f"OpenRouter error {response.status_code}:\n{response.text}")
-    content = response.json()["choices"][0]["message"]["content"]
-    parsed = extract_json_object(content)
+    choice = response.json()["choices"][0]
+    message = choice.get("message", {})
+    content = message.get("content")
+    if not content:
+        finish_reason = choice.get("finish_reason")
+        raise OpenRouterCorrectionError(
+            "OpenRouter returned an empty message content "
+            f"(finish_reason={finish_reason!r}).",
+            raw_model_text=str(message.get("reasoning") or message.get("refusal") or ""),
+        )
+    try:
+        parsed = extract_json_object(content)
+    except json.JSONDecodeError as exc:
+        raise OpenRouterCorrectionError(
+            "OpenRouter returned invalid JSON for word corrections.",
+            raw_model_text=content,
+        ) from exc
     parsed["_raw_model_text"] = content
     return parsed
 
@@ -558,6 +636,7 @@ def correct_words_with_openrouter(
     max_seconds_per_request: float = 20.0,
     context_pad_sec: float = 0.7,
     min_replace_confidence: float = 0.55,
+    correction_retries: int = 2,
     save_debug_json: bool = True,
 ) -> pd.DataFrame:
     """Correct and optionally translate GigaAM words with OpenRouter."""
@@ -573,6 +652,7 @@ def correct_words_with_openrouter(
     if "original_text" not in corrected_df.columns:
         corrected_df["original_text"] = corrected_df["text"]
     corrected_df["target_language"] = target_language
+    corrected_df["language"] = neuralset_language_name(target_language)
     corrected_df["correction_action"] = "not_processed"
     corrected_df["correction_confidence"] = None
     corrected_df["correction_reason"] = ""
@@ -596,41 +676,71 @@ def correct_words_with_openrouter(
             start_sec=start_sec,
             duration_sec=duration_sec,
         )
-        corrections = call_openrouter_word_corrector(
-            video_clip_path=clip_path,
-            words=window_df.to_dict("records"),
-            target_language=target_language,
-            api_key=api_key,
-            model=model,
-        )
-        if save_debug_json:
-            debug_path = debug_dir / f"corrections_{window_idx:05d}.json"
-            debug_path.write_text(
-                json.dumps(corrections, ensure_ascii=False, indent=2),
-                encoding="utf-8",
+        by_id: dict[int, dict[str, Any]] | None = None
+        corrections: dict[str, Any] | None = None
+        last_error: Exception | None = None
+        attempts = max(0, int(correction_retries)) + 1
+        for attempt in range(attempts):
+            try:
+                raw_dump_path = None
+                if save_debug_json:
+                    raw_dump_path = debug_dir / (
+                        f"raw_response_{window_idx:05d}_attempt_{attempt + 1:02d}.json"
+                    )
+                corrections = call_openrouter_word_corrector(
+                    video_clip_path=clip_path,
+                    words=window_df.to_dict("records"),
+                    target_language=target_language,
+                    api_key=api_key,
+                    model=model,
+                    raw_dump_path=raw_dump_path,
+                )
+                by_id = validate_and_index_corrections(corrections, expected_ids)
+                if save_debug_json:
+                    debug_path = debug_dir / (
+                        f"corrections_{window_idx:05d}_attempt_{attempt + 1:02d}.json"
+                    )
+                    debug_path.write_text(
+                        json.dumps(corrections, ensure_ascii=False, indent=2),
+                        encoding="utf-8",
+                    )
+                break
+            except Exception as exc:
+                last_error = exc
+                if save_debug_json:
+                    debug_path = debug_dir / (
+                        f"corrections_{window_idx:05d}_attempt_{attempt + 1:02d}_error.txt"
+                    )
+                    raw_text = str(getattr(exc, "raw_model_text", ""))
+                    if corrections is not None:
+                        raw_text = raw_text or str(corrections.get("_raw_model_text", ""))
+                    debug_path.write_text(
+                        f"{type(exc).__name__}: {exc}\n\nRAW_MODEL_TEXT:\n{raw_text}",
+                        encoding="utf-8",
+                    )
+                if attempt + 1 >= attempts:
+                    raise RuntimeError(
+                        "OpenRouter correction failed after "
+                        f"{attempts} attempt(s) for window {window_idx} "
+                        f"with ids {expected_ids[:5]}...{expected_ids[-5:]}"
+                    ) from last_error
+                time.sleep(min(2.0 * (attempt + 1), 6.0))
+        if by_id is None:
+            raise RuntimeError(
+                f"OpenRouter correction did not return validated items for window {window_idx}."
             )
-        by_id = validate_and_index_corrections(corrections, expected_ids)
         for word_id in expected_ids:
             item = by_id[word_id]
             row_mask = corrected_df["id"] == word_id
             original_text = str(corrected_df.loc[row_mask, "text"].iloc[0])
             corrected_text = str(item.get("corrected_text", "")).strip()
-            action = str(item.get("action", "keep")).strip()
-            confidence = float(item.get("confidence", 0.0))
-            reason = str(item.get("reason", "")).strip()
-            should_replace = (
-                action in {"replace", "translate"}
-                and confidence >= min_replace_confidence
-                and bool(corrected_text)
-            )
+            should_replace = bool(corrected_text)
             corrected_df.loc[row_mask, "text"] = (
                 corrected_text if should_replace else original_text
             )
             corrected_df.loc[row_mask, "correction_action"] = (
-                action if should_replace else "keep"
+                "replace" if should_replace else "keep"
             )
-            corrected_df.loc[row_mask, "correction_confidence"] = confidence
-            corrected_df.loc[row_mask, "correction_reason"] = reason
 
     corrected_df = rebuild_sentences_for_tribe(corrected_df)
     out_path = output_dir / "gigaam_openrouter_corrected_words.tsv"
@@ -652,6 +762,7 @@ def transcribe_video_for_tribe(
     video_path: str | Path,
     output_dir: str | Path,
     gigaam_model_name: str = DEFAULT_GIGAAM_MODEL,
+    gigaam_download_root: str | Path | None = None,
     openrouter_model: str = DEFAULT_OPENROUTER_MODEL,
     openrouter_api_key: str | None = None,
     source_language: str = "ru",
@@ -660,6 +771,7 @@ def transcribe_video_for_tribe(
     max_words_per_request: int = 80,
     max_seconds_per_request: float = 20.0,
     min_replace_confidence: float = 0.55,
+    correction_retries: int = 2,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Run the full hybrid transcription pipeline for one video."""
 
@@ -675,6 +787,7 @@ def transcribe_video_for_tribe(
         video_path=video_path,
         output_dir=output_dir,
         gigaam_model_name=gigaam_model_name,
+        gigaam_download_root=gigaam_download_root,
         chunk_sec=gigaam_chunk_sec,
         source_language=source_language,
     )
@@ -688,6 +801,7 @@ def transcribe_video_for_tribe(
         max_words_per_request=max_words_per_request,
         max_seconds_per_request=max_seconds_per_request,
         min_replace_confidence=min_replace_confidence,
+        correction_retries=correction_retries,
     )
     tribe_df = make_tribe_events_dataframe(corrected_df)
     corrected_df.to_csv(
@@ -712,6 +826,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("video", type=Path)
     parser.add_argument("--output-dir", type=Path, default=Path("hybrid_out"))
     parser.add_argument("--gigaam-model", default=DEFAULT_GIGAAM_MODEL)
+    parser.add_argument("--gigaam-download-root", type=Path, default=None)
     parser.add_argument("--openrouter-model", default=DEFAULT_OPENROUTER_MODEL)
     parser.add_argument("--source-language", default="ru")
     parser.add_argument("--target-language", default=DEFAULT_TARGET_LANGUAGE)
@@ -719,6 +834,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-words-per-request", type=int, default=80)
     parser.add_argument("--max-seconds-per-request", type=float, default=20.0)
     parser.add_argument("--min-replace-confidence", type=float, default=0.55)
+    parser.add_argument("--correction-retries", type=int, default=2)
     return parser.parse_args()
 
 
@@ -730,6 +846,7 @@ def main() -> None:
         video_path=args.video,
         output_dir=args.output_dir,
         gigaam_model_name=args.gigaam_model,
+        gigaam_download_root=args.gigaam_download_root,
         openrouter_model=args.openrouter_model,
         source_language=args.source_language,
         target_language=args.target_language,
@@ -737,6 +854,7 @@ def main() -> None:
         max_words_per_request=args.max_words_per_request,
         max_seconds_per_request=args.max_seconds_per_request,
         min_replace_confidence=args.min_replace_confidence,
+        correction_retries=args.correction_retries,
     )
     print(f"Saved TRIBE word events: {args.output_dir / 'tribe_word_events.tsv'}")
     print(f"Rows: {len(tribe_df)}")

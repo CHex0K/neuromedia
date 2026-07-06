@@ -207,11 +207,13 @@ def run_tribe_v2(
     transcript_source_language: str,
     transcript_target_language: str,
     gigaam_model: str,
+    gigaam_download_root: Path,
     openrouter_model: str,
     gigaam_chunk_sec: float,
     correction_max_words: int,
     correction_max_seconds: float,
     correction_min_confidence: float,
+    correction_retries: int,
 ) -> TribePrediction:
     """Run TRIBE v2 and aggregate time-resolved surface activations."""
 
@@ -241,11 +243,13 @@ def run_tribe_v2(
             transcript_source_language=transcript_source_language,
             transcript_target_language=transcript_target_language,
             gigaam_model=gigaam_model,
+            gigaam_download_root=gigaam_download_root,
             openrouter_model=openrouter_model,
             gigaam_chunk_sec=gigaam_chunk_sec,
             correction_max_words=correction_max_words,
             correction_max_seconds=correction_max_seconds,
             correction_min_confidence=correction_min_confidence,
+            correction_retries=correction_retries,
         )
     else:
         events_kwargs = {
@@ -261,6 +265,7 @@ def run_tribe_v2(
         source_language=transcript_source_language,
         target_language=transcript_target_language,
         gigaam_model=gigaam_model,
+        gigaam_download_root=gigaam_download_root,
         openrouter_model=openrouter_model,
     )
     LOGGER.info(
@@ -303,6 +308,7 @@ def write_transcription_metadata(
     source_language: str,
     target_language: str,
     gigaam_model: str,
+    gigaam_download_root: Path | None,
     openrouter_model: str,
 ) -> None:
     """Persist non-secret transcription settings next to TRIBE outputs."""
@@ -312,6 +318,7 @@ def write_transcription_metadata(
         "source_language": source_language,
         "target_language": target_language,
         "gigaam_model": gigaam_model if backend == "hybrid" else "",
+        "gigaam_download_root": str(gigaam_download_root) if backend == "hybrid" and gigaam_download_root else "",
         "openrouter_model": openrouter_model if backend == "hybrid" else "",
     }
     (output_dir / "tribe_transcription_backend.json").write_text(
@@ -327,11 +334,13 @@ def prepare_hybrid_transcript_events(
     transcript_source_language: str,
     transcript_target_language: str,
     gigaam_model: str,
+    gigaam_download_root: Path,
     openrouter_model: str,
     gigaam_chunk_sec: float,
     correction_max_words: int,
     correction_max_seconds: float,
     correction_min_confidence: float,
+    correction_retries: int,
 ) -> pd.DataFrame:
     """Build TRIBE events with hybrid Word events and preserved video/audio."""
 
@@ -361,8 +370,9 @@ def prepare_hybrid_transcript_events(
 
     hybrid_dir = output_dir / "hybrid_transcription"
     LOGGER.info(
-        "Running hybrid transcription: GigaAM=%s, correction=%s, target_language=%s",
+        "Running hybrid transcription: GigaAM=%s, download_root=%s, correction=%s, target_language=%s",
         gigaam_model,
+        gigaam_download_root,
         openrouter_model,
         transcript_target_language,
     )
@@ -370,6 +380,7 @@ def prepare_hybrid_transcript_events(
         video_path=input_path,
         output_dir=hybrid_dir,
         gigaam_model_name=gigaam_model,
+        gigaam_download_root=gigaam_download_root,
         openrouter_model=openrouter_model,
         source_language=transcript_source_language,
         target_language=transcript_target_language,
@@ -377,6 +388,7 @@ def prepare_hybrid_transcript_events(
         max_words_per_request=correction_max_words,
         max_seconds_per_request=correction_max_seconds,
         min_replace_confidence=correction_min_confidence,
+        correction_retries=correction_retries,
     )
     if word_events.empty:
         raise RuntimeError("Hybrid transcription produced no word events.")
@@ -850,6 +862,15 @@ def parse_args() -> argparse.Namespace:
         help="GigaAM model name for hybrid word timing.",
     )
     parser.add_argument(
+        "--gigaam-download-root",
+        type=Path,
+        default=None,
+        help=(
+            "Directory containing cached GigaAM files named "
+            "<model>.ckpt and <model>_tokenizer.model. Defaults to --cache-dir."
+        ),
+    )
+    parser.add_argument(
         "--openrouter-model",
         default="google/gemini-3.5-flash",
         help="OpenRouter model id for hybrid correction/translation.",
@@ -877,6 +898,12 @@ def parse_args() -> argparse.Namespace:
         type=float,
         default=0.55,
         help="Minimum correction confidence needed to replace/translate a word.",
+    )
+    parser.add_argument(
+        "--correction-retries",
+        type=int,
+        default=2,
+        help="Retry count for each OpenRouter correction window.",
     )
     parser.add_argument(
         "--reuse-tribe",
@@ -985,11 +1012,13 @@ def main() -> None:
             transcript_source_language=args.transcript_source_language,
             transcript_target_language=args.transcript_target_language,
             gigaam_model=args.gigaam_model,
+            gigaam_download_root=args.gigaam_download_root or args.cache_dir,
             openrouter_model=args.openrouter_model,
             gigaam_chunk_sec=args.gigaam_chunk_sec,
             correction_max_words=args.correction_max_words,
             correction_max_seconds=args.correction_max_seconds,
             correction_min_confidence=args.correction_min_confidence,
+            correction_retries=args.correction_retries,
         )
 
     if args.tribe_only:
