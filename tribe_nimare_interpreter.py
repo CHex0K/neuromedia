@@ -215,15 +215,42 @@ def run_tribe_v2(
     correction_min_confidence: float,
     correction_retries: int,
 ) -> TribePrediction:
-    """Run TRIBE v2 and aggregate time-resolved surface activations."""
+    """Run TRIBE v2 and aggregate time-resolved surface activations.
+
+    Thin wrapper kept for backwards compatibility: it loads the model and then
+    processes a single input. The two steps are factored into
+    ``load_tribe_model`` and ``process_input_with_model`` so a long-lived worker
+    (``tribe_worker.py``) can load the checkpoint once and reuse it across many
+    inputs.
+    """
+
+    model = load_tribe_model(checkpoint=checkpoint, cache_dir=cache_dir, device=device)
+    return process_input_with_model(
+        model=model,
+        input_path=input_path,
+        output_dir=output_dir,
+        aggregation=aggregation,
+        verbose=verbose,
+        transcript_backend=transcript_backend,
+        transcript_source_language=transcript_source_language,
+        transcript_target_language=transcript_target_language,
+        gigaam_model=gigaam_model,
+        gigaam_download_root=gigaam_download_root,
+        openrouter_model=openrouter_model,
+        gigaam_chunk_sec=gigaam_chunk_sec,
+        correction_max_words=correction_max_words,
+        correction_max_seconds=correction_max_seconds,
+        correction_min_confidence=correction_min_confidence,
+        correction_retries=correction_retries,
+    )
+
+
+def load_tribe_model(checkpoint: str, cache_dir: Path, device: str):
+    """Load a TRIBE v2 model once so it can be reused across many inputs."""
 
     patch_exca_no_value_compat()
     from tribev2 import TribeModel
 
-    if not input_path.is_file():
-        raise FileNotFoundError(f"Входной файл не найден: {input_path}")
-
-    input_kind = detect_input_kind(input_path)
     LOGGER.info("Loading TRIBE v2 checkpoint: %s", checkpoint)
     log_resource_snapshot("before TribeModel.from_pretrained")
     model = TribeModel.from_pretrained(
@@ -233,7 +260,33 @@ def run_tribe_v2(
         config_update=TRIBE_INFERENCE_CONFIG_UPDATE,
     )
     log_resource_snapshot("after TribeModel.from_pretrained")
+    return model
 
+
+def process_input_with_model(
+    model,
+    input_path: Path,
+    output_dir: Path,
+    aggregation: Aggregation,
+    verbose: bool,
+    transcript_backend: TranscriptBackend,
+    transcript_source_language: str,
+    transcript_target_language: str,
+    gigaam_model: str,
+    gigaam_download_root: Path,
+    openrouter_model: str,
+    gigaam_chunk_sec: float,
+    correction_max_words: int,
+    correction_max_seconds: float,
+    correction_min_confidence: float,
+    correction_retries: int,
+) -> TribePrediction:
+    """Run TRIBE v2 inference for one input using a preloaded model."""
+
+    if not input_path.is_file():
+        raise FileNotFoundError(f"Входной файл не найден: {input_path}")
+
+    input_kind = detect_input_kind(input_path)
     LOGGER.info("Preparing %s events from %s", input_kind, input_path)
     if transcript_backend == "hybrid":
         events = prepare_hybrid_transcript_events(

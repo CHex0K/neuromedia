@@ -1,0 +1,29 @@
+{
+  "task_id": "template3-xlsx-report",
+  "overall": "PASS_PENDING_MEDIA_INTEGRATION",
+  "summary": "Each video's report .xlsx is now emitted in Template_3_with_frames format by filling the shipped template as a skeleton from existing pipeline CSV artifacts, one row per TRIBE segment. Unit test (synthetic data, no GPU/media) and static checks pass. Real-video frame embedding + scene_description is the remaining manual/integration step.",
+  "criteria": [
+    {"id": "AC1", "status": "PASS", "evidence": "template3_report.build_template3_workbook loads the shipped Template_3_with_frames.xlsx with openpyxl, clears example rows/images, writes one row per TRIBE segment; test asserts all 6 sheets + README + 5_WEIGHTS_REF preserved."},
+    {"id": "AC2", "status": "PASS", "evidence": "1_RAW_CORRELATIONS filled from decoded_terms.csv; test asserts term columns equal the template header order (visual_attention@6, reward@30) with injected r values and cleared extra rows."},
+    {"id": "AC3", "status": "PASS", "evidence": "3_INDEX_SCORES filled with 8 index columns + z_<IDX>; test asserts ATT matches inputs and z_ATT equals np zscore(ddof=0)."},
+    {"id": "AC4", "status": "PASS", "evidence": "2_FRAME_MARKUP HOOK/BRAND/PRODUCT/OFFER/CTA/LOGO all written as 0 skeleton, tags blank; test asserts flags == 0."},
+    {"id": "AC5", "status": "PASS", "evidence": "4_WINDOW_AGGREGATES Hook 0-3/0-5/AUC/Peak/Finale (+z rows) computed from per-segment index scores; markup windows left blank; test asserts Hook/AUC/Peak numeric and BRAND window blank."},
+    {"id": "AC6", "status": "PASS_STATIC", "evidence": "_embed_frame adds one openpyxl image per segment in the frame_image column via extract_frame_png_bytes; degrades to blank if unavailable. Verified structurally; real ffmpeg embedding requires a video (manual)."},
+    {"id": "AC7", "status": "PASS_STATIC", "evidence": "_segment_frames aligns words TSV to each segment window [offset, offset+duration] for scene_description; blank when no words TSV. Verified structurally (test runs without a words TSV -> blank)."},
+    {"id": "AC8", "status": "PASS", "evidence": "generate_report calls write_template3_report which writes output_html.with_suffix('.xlsx') in Template_3 format and it is zipped via write_report_zip; HTML unchanged. import marketing_report + presence checks pass."},
+    {"id": "AC9", "status": "PASS", "evidence": "openpyxl>=3.1,<4 added to requirements.txt; Template_3_with_frames.xlsx staged in git so the clone-based runtime and loader find it."},
+    {"id": "AC10", "status": "PASS", "evidence": "template3_report.py starts with '# -*- coding: utf-8 -*-'; no secrets written into the workbook; UTF-8 CSV reads."}
+  ],
+  "commands": [
+    "python -m py_compile template3_report.py marketing_report.py",
+    "python -c \"import marketing_report; ...\"",
+    "python .agent/tasks/template3-xlsx-report/raw/test_template3.py"
+  ],
+  "raw_artifacts": [
+    ".agent/tasks/template3-xlsx-report/raw/verification-output.txt",
+    ".agent/tasks/template3-xlsx-report/raw/test_template3.py"
+  ],
+  "manual_followups": [
+    "Run one real video end-to-end; confirm per-segment frames embed in 1_RAW_CORRELATIONS/2_FRAME_MARKUP and scene_description is populated from the hybrid transcript, and that the Template_3 xlsx is inside the report ZIP."
+  ]
+}

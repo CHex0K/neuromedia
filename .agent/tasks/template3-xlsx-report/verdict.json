@@ -1,0 +1,20 @@
+{
+  "task_id": "template3-xlsx-report",
+  "overall": "PASS_STATIC",
+  "note": "All statically- and unit-verifiable acceptance criteria PASS against the current code and current command results. AC6 (real ffmpeg frame embedding) and AC7 (transcript-derived scene_description) have a runtime component that needs a real video; verified structurally + via the synthetic-data test. Full media integration is the documented manual step.",
+  "criteria": [
+    {"id": "AC1", "status": "PASS"},
+    {"id": "AC2", "status": "PASS"},
+    {"id": "AC3", "status": "PASS"},
+    {"id": "AC4", "status": "PASS"},
+    {"id": "AC5", "status": "PASS"},
+    {"id": "AC6", "status": "PASS_STATIC"},
+    {"id": "AC7", "status": "PASS_STATIC"},
+    {"id": "AC8", "status": "PASS"},
+    {"id": "AC9", "status": "PASS"},
+    {"id": "AC10", "status": "PASS"}
+  ],
+  "fresh_verification": [
+    ".agent/tasks/template3-xlsx-report/raw/verification-output.txt"
+  ]
+}

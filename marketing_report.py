@@ -511,13 +511,15 @@ def run_ffmpeg(command: list[str]) -> bytes | None:
     return None
 
 
-def extract_video_frame(input_media: Path | None, start: float | None, duration: float | None) -> str:
-    """Extract a representative frame for a segment and return an HTML image tag."""
+def extract_frame_png_bytes(
+    input_media: Path | None, start: float | None, duration: float | None
+) -> bytes | None:
+    """Extract a representative PNG frame for a segment and return raw bytes."""
 
     if input_media is None or input_media.suffix.lower() not in VIDEO_EXTENSIONS or not input_media.is_file():
-        return ""
+        return None
     if start is None:
-        return ""
+        return None
     timestamp = max(start + max(duration or 0.0, 0.0) / 2.0, 0.0)
     with tempfile.TemporaryDirectory() as tmp_dir:
         output_path = Path(tmp_dir) / "frame.png"
@@ -537,7 +539,13 @@ def extract_video_frame(input_media: Path | None, start: float | None, duration:
             "scale=320:-1",
             str(output_path),
         ]
-        frame_bytes = run_ffmpeg(command)
+        return run_ffmpeg(command)
+
+
+def extract_video_frame(input_media: Path | None, start: float | None, duration: float | None) -> str:
+    """Extract a representative frame for a segment and return an HTML image tag."""
+
+    frame_bytes = extract_frame_png_bytes(input_media, start, duration)
     if not frame_bytes:
         return ""
     return f"<img class=\"stimulus-frame\" src=\"{png_data_uri(frame_bytes)}\" alt=\"video frame\">"
@@ -1628,8 +1636,11 @@ def generate_report(
     output_html.parent.mkdir(parents=True, exist_ok=True)
     output_html.write_text(html_text, encoding="utf-8")
     output_xlsx = output_html.with_suffix(".xlsx")
-    write_excel_report(
+    write_template3_report(
         output_xlsx=output_xlsx,
+        surface_dir=surface_dir,
+        tribe_dir=tribe_dir,
+        input_media=input_media,
         scores=scores,
         terms=terms,
         segment_table=segment_table,
@@ -1638,6 +1649,58 @@ def generate_report(
     if output_zip is None:
         return output_html
     return write_report_zip(output_zip, output_html=output_html, output_xlsx=output_xlsx)
+
+
+def write_template3_report(
+    output_xlsx: Path,
+    surface_dir: Path,
+    tribe_dir: Path,
+    input_media: Path | None,
+    scores: pd.DataFrame,
+    terms: pd.DataFrame,
+    segment_table: pd.DataFrame,
+    aggregate_table: pd.DataFrame,
+) -> Path:
+    """Emit the report .xlsx in Template_3_with_frames format.
+
+    Falls back to the legacy simple workbook if the template skeleton or optional
+    dependencies are unavailable, so the report never fails on the Excel step.
+    """
+
+    template_path = Path(__file__).resolve().parent / "Template_3_with_frames.xlsx"
+    decoded_terms_csv = surface_dir / "decoded_terms.csv"
+    marketing_scores_csv = surface_dir / "marketing_scores.csv"
+    segments_tsv = tribe_dir / "tribe_segments.tsv"
+    words_tsv = tribe_dir / "gigaam_openrouter_corrected_words.tsv"
+
+    if template_path.is_file() and decoded_terms_csv.is_file() and marketing_scores_csv.is_file():
+        try:
+            import template3_report
+
+            def frame_provider(offset: float | None, duration: float | None) -> bytes | None:
+                return extract_frame_png_bytes(input_media, offset, duration)
+
+            template3_report.build_template3_workbook(
+                template_path=template_path,
+                decoded_terms_csv=decoded_terms_csv,
+                marketing_scores_csv=marketing_scores_csv,
+                output_xlsx=output_xlsx,
+                segments_tsv=segments_tsv if segments_tsv.is_file() else None,
+                words_tsv=words_tsv if words_tsv.is_file() else None,
+                frame_png_provider=frame_provider,
+            )
+            return output_xlsx
+        except Exception as exc:  # noqa: BLE001 - never fail the report on the xlsx step
+            LOGGER.warning("Template_3 workbook failed (%s); using legacy simple xlsx.", exc)
+
+    write_excel_report(
+        output_xlsx=output_xlsx,
+        scores=scores,
+        terms=terms,
+        segment_table=segment_table,
+        aggregate_table=aggregate_table,
+    )
+    return output_xlsx
 
 
 def main() -> None:
