@@ -1,0 +1,35 @@
+### py_compile
+OK tribe_nimare_interpreter.py tribe_worker.py
+
+### unit: protocol
+PASS: loads once, per-job failure isolated, loop continued
+PASS: fatal load reported, no jobs processed
+PASS: invalid JSON line isolated, subsequent job still ran
+ALL WORKER PROTOCOL TESTS PASSED
+
+### unit: subprocess
+PASS: real subprocess protocol OK, statuses = ['ready', 'ok', 'error', 'ok']
+SUBPROCESS SMOKE TEST PASSED
+
+### notebook static checks
+JSON + cell syntax: OK
+OK   helper class
+OK   crashed exc
+OK   result prefix const
+OK   max restarts const
+OK   session init
+OK   toggle branch
+OK   legacy branch kept
+OK   worker start
+OK   worker run_job
+OK   restart bound
+OK   restart increment
+OK   shutdown after loop
+OK   worker script referenced
+OK   checkbox
+OK   checkbox in inputs
+OK   sig param
+OK   result parse newline literal
+param order OK: ['force_rerun_tribe', 'use_persistent_worker', 'n_timesteps', 'show_stimuli']
+inputs list order OK
+ALL NOTEBOOK WORKER CHECKS PASS

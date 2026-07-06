@@ -1,0 +1,19 @@
+{
+  "task_id": "persistent-tribe-worker",
+  "overall": "PASS_STATIC",
+  "note": "All statically- and unit-verifiable acceptance criteria PASS against the current code and current command results. AC2 (runtime once-per-run), AC4 (real crash/OOM restart), and AC8 (--help execution) have a runtime component that cannot be exercised in this environment (no GPU, no torch/tribev2/nibabel). They are verified structurally + by proxy tests; full GPU integration is the documented manual step.",
+  "criteria": [
+    {"id": "AC1", "status": "PASS"},
+    {"id": "AC2", "status": "PASS_STATIC"},
+    {"id": "AC3", "status": "PASS"},
+    {"id": "AC4", "status": "PASS_STATIC"},
+    {"id": "AC5", "status": "PASS"},
+    {"id": "AC6", "status": "PASS"},
+    {"id": "AC7", "status": "PASS"},
+    {"id": "AC8", "status": "PASS_STATIC"},
+    {"id": "AC9", "status": "PASS"}
+  ],
+  "fresh_verification": [
+    ".agent/tasks/persistent-tribe-worker/raw/verification-output.txt"
+  ]
+}

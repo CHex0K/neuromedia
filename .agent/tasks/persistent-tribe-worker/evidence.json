@@ -1,0 +1,67 @@
+{
+  "task_id": "persistent-tribe-worker",
+  "overall": "PASS_PENDING_GPU_INTEGRATION",
+  "summary": "TRIBE model is now loaded once per run via a persistent tribe_worker.py driven by the notebook. Unit + cross-process protocol tests pass and notebook static/syntax checks pass. Full GPU end-to-end integration on Colab is the remaining manual step (no GPU/checkpoint locally).",
+  "criteria": [
+    {
+      "id": "AC1",
+      "status": "PASS",
+      "evidence": "tribe_worker.py serve() loads the model once, reads line-delimited JSON jobs from stdin, emits one sentinel-prefixed result per job. Verified by test_worker_protocol.py (load count == 1 for 3 jobs) and test_worker_subprocess.py (real Popen pipes, statuses ['ready','ok','error','ok'])."
+    },
+    {
+      "id": "AC2",
+      "status": "PASS_STATIC",
+      "evidence": "Notebook now dispatches the TRIBE step through TribeWorkerSession created once before the per-file loop; both single-file and batch runs share the loop (job list length 1 or N). from_pretrained-once-per-run is guaranteed by session persistence + verified load-once in tests. Runtime confirmation on real checkpoint requires GPU (manual)."
+    },
+    {
+      "id": "AC3",
+      "status": "PASS",
+      "evidence": "serve() wraps each job in try/except: a raising job yields status='error' with traceback and the loop continues (test_worker_protocol.py and test_worker_subprocess.py). Notebook raises RuntimeError on non-ok result, caught by the existing per-file except -> batch_failures.json + continue."
+    },
+    {
+      "id": "AC4",
+      "status": "PASS_STATIC",
+      "evidence": "TribeWorkerCrashed raised when the worker process dies (start/run_job detect poll()!=None). Notebook lazily restarts a dead session on the next video, increments tribe_worker_restarts, and aborts that video after TRIBE_WORKER_MAX_RESTARTS. Present in notebook static checks. Real crash/OOM recovery requires GPU (manual)."
+    },
+    {
+      "id": "AC5",
+      "status": "PASS",
+      "evidence": "The existing 'if can_reuse_tribe:' cache+settings check still precedes dispatch; the worker is created only inside the else (needs-TRIBE) branch, so it starts lazily on the first video that actually needs TRIBE. Notebook static check confirms structure."
+    },
+    {
+      "id": "AC6",
+      "status": "PASS",
+      "evidence": "gr.Checkbox 'Persistent TRIBE worker (load model once per run)' (default True) wired into inputs and the analyze_video signature; 'if use_persistent_worker:' selects worker, else the unchanged legacy run_command_stream(tribe_cmd) path (both branches present in static checks)."
+    },
+    {
+      "id": "AC7",
+      "status": "PASS",
+      "evidence": "TribeWorkerSession._drain_nowait routes sentinel-prefixed lines to the result parser and all other worker stdout/stderr lines to log_lines (streamed to gradio log + gradio_last_run.log). Tests confirm non-prefixed lines are not mis-parsed as results."
+    },
+    {
+      "id": "AC8",
+      "status": "PASS_STATIC",
+      "evidence": "run_tribe_v2 keeps its original signature and now delegates to load_tribe_model + process_input_with_model; main() is unchanged. py_compile passes. `--help` cannot run locally only because heavy deps (nibabel etc.) are not installed in this environment; the import line is unchanged from before."
+    },
+    {
+      "id": "AC9",
+      "status": "PASS",
+      "evidence": "tribe_worker.py starts with '# -*- coding: utf-8 -*-'. Secrets are never on the worker command line (worker_cmd has only checkpoint/cache-dir/device) or in result lines (status/paths only); OPENROUTER_API_KEY/HF_TOKEN flow via inherited env as before."
+    }
+  ],
+  "commands": [
+    "python -m py_compile tribe_nimare_interpreter.py tribe_worker.py",
+    "python .agent/tasks/persistent-tribe-worker/raw/test_worker_protocol.py",
+    "python .agent/tasks/persistent-tribe-worker/raw/test_worker_subprocess.py",
+    "python <scratchpad>/validate_worker_nb.py"
+  ],
+  "raw_artifacts": [
+    ".agent/tasks/persistent-tribe-worker/raw/verification-output.txt",
+    ".agent/tasks/persistent-tribe-worker/raw/test_worker_protocol.py",
+    ".agent/tasks/persistent-tribe-worker/raw/test_worker_subprocess.py"
+  ],
+  "manual_followups": [
+    "Run a 2-video batch on Colab GPU with one intentionally broken input; confirm a single from_pretrained load in gradio_last_run.log, 1 processed + 1 failed in batch_failures.json, and a correct combined ZIP.",
+    "Force a CUDA OOM to confirm worker restart-on-crash and bounded restarts."
+  ]
+}

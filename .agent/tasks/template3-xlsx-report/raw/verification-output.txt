@@ -1,0 +1,11 @@
+### py_compile
+OK
+
+### import marketing_report (wiring sanity)
+import OK; has write_template3_report: True | has extract_frame_png_bytes: True
+
+### template3 unit test
+PASS: template3 workbook filled correctly
+  sheets: ['1_RAW_CORRELATIONS', '2_FRAME_MARKUP', '3_INDEX_SCORES', '4_WINDOW_AGGREGATES', '5_WEIGHTS_REF', 'README']
+  segment rows: 3; z_ATT + windows verified; markup skeleton blank
+TEMPLATE3 TEST PASSED

@@ -1,6 +1,0 @@
-numpy
-pandas
-nibabel
-nilearn
-scipy
-nimare
