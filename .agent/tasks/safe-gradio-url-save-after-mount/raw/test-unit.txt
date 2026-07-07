@@ -1,0 +1,14 @@
+Static source assertion:
+
+Command:
+$text = Get-Content -LiteralPath run_surface_decoder_colab.ipynb -Encoding UTF8 -Raw; if ($text -notmatch 'local_path = PROJECT_DIR / \\"gradio_url\\.txt\\"') { throw 'missing local_path' }; if ($text -notmatch 'if not is_active_mount\\(drive_mount\\):') { throw 'missing mount guard' }; if ($text.IndexOf('local_path = PROJECT_DIR') -ge $text.IndexOf('drive_path = Path(DEFAULT_ROOT_DIR)')) { throw 'wrong order' }; 'url save source ok'
+
+Exit code: 0
+
+Output:
+url save source ok
+
+Meaning:
+- Local URL persistence exists.
+- Active mount guard exists.
+- Local persistence occurs before any Drive-path write.

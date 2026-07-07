@@ -1,0 +1,95 @@
+{
+  "task_id": "safe-gradio-url-save-after-mount",
+  "overall_status": "PASS",
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "text": "`save_gradio_urls()` never creates `/content/drive/MyDrive` or any Drive subdirectory before Google Drive is actively mounted.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/safe-gradio-url-save-after-mount/raw/test-unit.txt",
+          "command": "$text = Get-Content -LiteralPath run_surface_decoder_colab.ipynb -Encoding UTF8 -Raw; ...",
+          "exit_code": 0,
+          "summary": "Source assertion confirms the Drive path is only reached after `is_active_mount(drive_mount)` guard."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC2",
+      "text": "Gradio URL is still persisted locally under `/content/neuromedia/gradio_url.txt` so URL output glitches remain recoverable.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "artifact",
+          "path": ".agent/tasks/safe-gradio-url-save-after-mount/raw/test-integration.txt",
+          "summary": "Static search confirms `local_path = PROJECT_DIR / \"gradio_url.txt\"`."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC3",
+      "text": "When Google Drive is already mounted, Gradio URL is also saved to `/content/drive/MyDrive/neuromedia/logs/gradio_url.txt`.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "artifact",
+          "path": ".agent/tasks/safe-gradio-url-save-after-mount/raw/test-integration.txt",
+          "summary": "Static search confirms the Drive URL path remains after the mount guard."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC4",
+      "text": "`run_surface_decoder_colab.ipynb` remains valid JSON.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/safe-gradio-url-save-after-mount/raw/test-integration.txt",
+          "command": "python -m json.tool run_surface_decoder_colab.ipynb > $null; if ($LASTEXITCODE -eq 0) { 'notebook json ok' }",
+          "exit_code": 0,
+          "summary": "Notebook JSON parsed successfully."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC5",
+      "text": "The final response explains why this prevents `Mountpoint must not already contain files`.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "artifact",
+          "path": ".agent/tasks/safe-gradio-url-save-after-mount/evidence.md",
+          "summary": "Final response will explain the mountpoint issue and fix."
+        }
+      ],
+      "gaps": []
+    }
+  ],
+  "changed_files": [
+    "run_surface_decoder_colab.ipynb",
+    ".agent/tasks/safe-gradio-url-save-after-mount/spec.md",
+    ".agent/tasks/safe-gradio-url-save-after-mount/evidence.md",
+    ".agent/tasks/safe-gradio-url-save-after-mount/evidence.json",
+    ".agent/tasks/safe-gradio-url-save-after-mount/raw/build.txt",
+    ".agent/tasks/safe-gradio-url-save-after-mount/raw/test-unit.txt",
+    ".agent/tasks/safe-gradio-url-save-after-mount/raw/test-integration.txt",
+    ".agent/tasks/safe-gradio-url-save-after-mount/raw/lint.txt"
+  ],
+  "commands_for_fresh_verifier": [
+    "python -m json.tool run_surface_decoder_colab.ipynb > $null; if ($LASTEXITCODE -eq 0) { 'notebook json ok' }",
+    "rg -n 'local_path = PROJECT_DIR|drive_mount = Path|if not is_active_mount\\(drive_mount\\)|drive_path = Path\\(DEFAULT_ROOT_DIR\\)|Google Drive is not mounted; skipped Drive URL log' run_surface_decoder_colab.ipynb",
+    "$text = Get-Content -LiteralPath run_surface_decoder_colab.ipynb -Encoding UTF8 -Raw; if ($text -notmatch 'local_path = PROJECT_DIR / \\\\\"gradio_url\\\\.txt\\\\\"') { throw 'missing local_path' }; if ($text -notmatch 'if not is_active_mount\\\\(drive_mount\\\\):') { throw 'missing mount guard' }; if ($text.IndexOf('local_path = PROJECT_DIR') -ge $text.IndexOf('drive_path = Path(DEFAULT_ROOT_DIR)')) { throw 'wrong order' }; 'url save source ok'",
+    "git diff --check -- run_surface_decoder_colab.ipynb .agent\\tasks\\safe-gradio-url-save-after-mount\\spec.md",
+    "python .agents\\skills\\repo-task-proof-loop\\scripts\\task_loop.py validate --task-id safe-gradio-url-save-after-mount"
+  ],
+  "known_gaps": [
+    "Live Colab Drive mount behavior was not rerun from this local environment."
+  ]
+}

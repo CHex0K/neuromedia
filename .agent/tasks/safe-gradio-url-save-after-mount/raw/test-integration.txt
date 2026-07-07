@@ -1,0 +1,17 @@
+No live Colab/Google Drive integration run was executed locally.
+
+Local checks:
+
+1. Notebook JSON parse:
+   Command: python -m json.tool run_surface_decoder_colab.ipynb > $null; if ($LASTEXITCODE -eq 0) { 'notebook json ok' }
+   Exit code: 0
+   Output: notebook json ok
+
+2. Static search:
+   Command: rg -n 'local_path = PROJECT_DIR|drive_mount = Path|if not is_active_mount\(drive_mount\)|drive_path = Path\(DEFAULT_ROOT_DIR\)|Google Drive is not mounted; skipped Drive URL log' run_surface_decoder_colab.ipynb
+   Exit code: 0
+   Output summary:
+   - `local_path = PROJECT_DIR / "gradio_url.txt"` is present.
+   - `drive_mount = Path("/content/drive")` is present.
+   - `if not is_active_mount(drive_mount):` is present before Drive path creation.
+   - `drive_path = Path(DEFAULT_ROOT_DIR) / "logs" / "gradio_url.txt"` is present after the guard.

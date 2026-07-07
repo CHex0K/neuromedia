@@ -1,0 +1,22 @@
+Task type: notebook bug fix.
+
+Problem:
+- `save_gradio_urls()` previously tried to write to
+  `/content/drive/MyDrive/neuromedia/logs/gradio_url.txt` before writing to the
+  local project directory.
+- If Google Drive was not mounted yet, `mkdir(parents=True)` could create a
+  local `/content/drive/MyDrive/...` tree.
+- Later `drive.mount("/content/drive", force_remount=True)` fails when the
+  mount point already contains files.
+
+Production file changed:
+- `run_surface_decoder_colab.ipynb`
+
+Patch summary:
+- `save_gradio_urls()` now writes first to `/content/neuromedia/gradio_url.txt`.
+- It checks `is_active_mount(Path("/content/drive"))` before touching any Drive
+  path.
+- If Drive is not mounted, it logs `Google Drive is not mounted; skipped Drive URL log.`
+  and returns.
+- If Drive is mounted, it additionally writes to
+  `/content/drive/MyDrive/neuromedia/logs/gradio_url.txt`.
