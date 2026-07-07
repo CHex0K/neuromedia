@@ -1,7 +1,7 @@
 {
   "task_id": "template3-xlsx-report",
   "overall": "PASS_STATIC",
-  "note": "All statically- and unit-verifiable acceptance criteria PASS against the current code and current command results. AC6 (real ffmpeg frame embedding) and AC7 (transcript-derived scene_description) have a runtime component that needs a real video; verified structurally + via the synthetic-data test. Full media integration is the documented manual step.",
+  "note": "Formula-driven template: generator fills only 1_RAW_CORRELATIONS + markup skeleton + frames and preserves all index/window formulas (see problems.md P1 for the earlier empty-sheet defect and fix). Index computation proven END-TO-END by LibreOffice recalc (index populated, z_ATT=[-1,0,1], phantom rows clean). AC6 (real ffmpeg frame embedding) and AC7 (transcript-derived scene_description) still need a real video; verified structurally. Full media integration is the documented manual step.",
   "criteria": [
     {"id": "AC1", "status": "PASS"},
     {"id": "AC2", "status": "PASS"},

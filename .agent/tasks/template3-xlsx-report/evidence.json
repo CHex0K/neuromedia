@@ -1,13 +1,13 @@
 {
   "task_id": "template3-xlsx-report",
   "overall": "PASS_PENDING_MEDIA_INTEGRATION",
-  "summary": "Each video's report .xlsx is now emitted in Template_3_with_frames format by filling the shipped template as a skeleton from existing pipeline CSV artifacts, one row per TRIBE segment. Unit test (synthetic data, no GPU/media) and static checks pass. Real-video frame embedding + scene_description is the remaining manual/integration step.",
+  "summary": "The template is formula-driven: only 1_RAW_CORRELATIONS holds raw numbers, while 3_INDEX_SCORES/4_WINDOW_AGGREGATES/2_FRAME_MARKUP(A:C) are Excel formulas. The generator fills only the raw sheet + markup skeleton + frames and leaves all formulas intact; phantom frame rows are cleared so empty formulas can't poison STDEV/AVERAGE. Proven end-to-end by recomputing with LibreOffice: the index sheet is populated with correct values and z-scores. See problems.md (P1) for the earlier empty-sheet defect and its fix.",
   "criteria": [
-    {"id": "AC1", "status": "PASS", "evidence": "template3_report.build_template3_workbook loads the shipped Template_3_with_frames.xlsx with openpyxl, clears example rows/images, writes one row per TRIBE segment; test asserts all 6 sheets + README + 5_WEIGHTS_REF preserved."},
-    {"id": "AC2", "status": "PASS", "evidence": "1_RAW_CORRELATIONS filled from decoded_terms.csv; test asserts term columns equal the template header order (visual_attention@6, reward@30) with injected r values and cleared extra rows."},
-    {"id": "AC3", "status": "PASS", "evidence": "3_INDEX_SCORES filled with 8 index columns + z_<IDX>; test asserts ATT matches inputs and z_ATT equals np zscore(ddof=0)."},
-    {"id": "AC4", "status": "PASS", "evidence": "2_FRAME_MARKUP HOOK/BRAND/PRODUCT/OFFER/CTA/LOGO all written as 0 skeleton, tags blank; test asserts flags == 0."},
-    {"id": "AC5", "status": "PASS", "evidence": "4_WINDOW_AGGREGATES Hook 0-3/0-5/AUC/Peak/Finale (+z rows) computed from per-segment index scores; markup windows left blank; test asserts Hook/AUC/Peak numeric and BRAND window blank."},
+    {"id": "AC1", "status": "PASS", "evidence": "build_template3_workbook loads the shipped template with openpyxl and writes one row per TRIBE segment into 1_RAW_CORRELATIONS while preserving all sheets/formulas; test asserts 6 sheets present."},
+    {"id": "AC2", "status": "PASS", "evidence": "1_RAW_CORRELATIONS filled from decoded_terms.csv; test asserts term columns equal the template header order (visual_attention@6, reward@30) with injected r values and phantom rows cleared."},
+    {"id": "AC3", "status": "PASS", "evidence": "3_INDEX_SCORES formulas are PRESERVED (D4=`=AVERAGE(...)`, L4=`=IFERROR(...z...)`), not overwritten. LibreOffice recalc (raw/recalc_check_libreoffice.py) shows the ATT index scales x1/x2/x3 with the raw r and z_ATT = [-1,0,+1] over exactly the real frames."},
+    {"id": "AC4", "status": "PASS", "evidence": "2_FRAME_MARKUP keeps its formula-linked frame_id/second/scene and 0 flag skeleton; test asserts A4 formula preserved and E4 flag in (0,None); phantom rows cleared."},
+    {"id": "AC5", "status": "PASS", "evidence": "4_WINDOW_AGGREGATES formulas left untouched (C4=`=AVERAGE('3_INDEX_SCORES'!D4:D6)`); markup-dependent windows remain AVERAGEIF formulas that stay blank until the manual markup is filled. Test asserts C4 formula preserved."},
     {"id": "AC6", "status": "PASS_STATIC", "evidence": "_embed_frame adds one openpyxl image per segment in the frame_image column via extract_frame_png_bytes; degrades to blank if unavailable. Verified structurally; real ffmpeg embedding requires a video (manual)."},
     {"id": "AC7", "status": "PASS_STATIC", "evidence": "_segment_frames aligns words TSV to each segment window [offset, offset+duration] for scene_description; blank when no words TSV. Verified structurally (test runs without a words TSV -> blank)."},
     {"id": "AC8", "status": "PASS", "evidence": "generate_report calls write_template3_report which writes output_html.with_suffix('.xlsx') in Template_3 format and it is zipped via write_report_zip; HTML unchanged. import marketing_report + presence checks pass."},
@@ -21,7 +21,9 @@
   ],
   "raw_artifacts": [
     ".agent/tasks/template3-xlsx-report/raw/verification-output.txt",
-    ".agent/tasks/template3-xlsx-report/raw/test_template3.py"
+    ".agent/tasks/template3-xlsx-report/raw/test_template3.py",
+    ".agent/tasks/template3-xlsx-report/raw/recalc_check_libreoffice.py",
+    ".agent/tasks/template3-xlsx-report/problems.md"
   ],
   "manual_followups": [
     "Run one real video end-to-end; confirm per-segment frames embed in 1_RAW_CORRELATIONS/2_FRAME_MARKUP and scene_description is populated from the hybrid transcript, and that the Template_3 xlsx is inside the report ZIP."

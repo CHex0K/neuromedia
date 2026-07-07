@@ -15,18 +15,25 @@
 - `Template_3_with_frames.xlsx`: tracked in the repo so the clone-based Colab
   runtime and the report loader find the skeleton.
 
-## Sheet mapping (per decisions D1-D3)
-- 1_RAW_CORRELATIONS: per-segment rows; frame_id/second/scene_description/frame,
-  plus 51 term columns filled from `decoded_terms.csv` (r), in the template's exact
-  group+term order.
-- 3_INDEX_SCORES: per-segment 8-index mean_r (from `marketing_scores.csv`) + z_<IDX>
-  columns (z across segments).
-- 2_FRAME_MARKUP: empty skeleton — frame_id/second/scene/frame filled; HOOK/BRAND/
-  PRODUCT/OFFER/CTA/LOGO = 0; tags blank (D1).
-- 4_WINDOW_AGGREGATES: Hook 0-3s / 0-5s / AUC(full) / Peak / Finale + their z rows
-  computed from per-segment index scores; BRAND/OFFER/CTA/PRODUCT/LOGO windows left
-  blank (markup-dependent).
+## Sheet mapping (per decisions D1-D3) — IMPORTANT: template is formula-driven
+The template computes everything except the raw correlations via Excel formulas
+("формулы — не редактировать"), so the generator fills ONLY the raw sheet and
+leaves the formulas intact (see problems.md P1 for the earlier defect where the
+formula sheets were wrongly overwritten and came out empty).
+- 1_RAW_CORRELATIONS (ONLY sheet written): per-segment rows; frame_id/second/
+  scene_description/frame, plus 51 term columns filled from `decoded_terms.csv` (r)
+  in the template's exact group+term order.
+- 3_INDEX_SCORES: FORMULAS PRESERVED (weighted AVERAGE of raw terms + z-scores);
+  Excel recomputes from sheet 1 on open.
+- 2_FRAME_MARKUP: frame_id/second/scene are formulas linked to sheet 1 (preserved);
+  HOOK/BRAND/PRODUCT/OFFER/CTA/LOGO stay the 0 skeleton for manual fill (D1); frames
+  embedded.
+- 4_WINDOW_AGGREGATES: FORMULAS PRESERVED (AVERAGE/MAX/AVERAGEIF); markup windows are
+  AVERAGEIF formulas that stay blank until markup is filled.
 - 5_WEIGHTS_REF, README: preserved from the skeleton.
+- Phantom frame rows beyond the real segment count are cleared so empty formulas
+  cannot evaluate to #DIV/0! and poison STDEV/AVERAGE; >20 segments extend the
+  formula rows and widen the fixed ranges. `fullCalcOnLoad=True` forces recompute.
 - Rows are one-per-TRIBE-segment (D2); frames embedded per segment via ffmpeg.
 
 ## Verification (current code, current results) — see raw/verification-output.txt
