@@ -54,6 +54,25 @@ def _find_column(frame: pd.DataFrame, candidates: list[str]) -> Optional[str]:
     return None
 
 
+def _first_populated_column(frame: pd.DataFrame, candidates: list[str]) -> Optional[str]:
+    """Pick the first candidate column that exists AND has data.
+
+    TRIBE's tribe_segments.tsv leaves ``offset`` empty and stores the real
+    per-segment time in ``start``; a plain name match would pick the empty
+    ``offset`` column, so prefer a candidate that actually has values.
+    """
+
+    normalized = {str(c).strip().lower(): c for c in frame.columns}
+    for cand in candidates:
+        col = normalized.get(cand)
+        if col is not None and frame[col].notna().any():
+            return col
+    for cand in candidates:  # fall back to any existing (even if empty)
+        if cand in normalized:
+            return normalized[cand]
+    return None
+
+
 def _read_header_terms(ws) -> list[tuple[int, str]]:
     """Return (column_index, normalized_term) for the term columns of sheet 1."""
 
@@ -81,8 +100,8 @@ def _segment_rows(decoded_terms_csv, segments_tsv, words_tsv):
     durations: dict[int, Optional[float]] = {}
     if segments_tsv and Path(segments_tsv).is_file():
         seg = pd.read_csv(segments_tsv, sep="\t")
-        off_col = _find_column(seg, ["offset", "start"])
-        dur_col = _find_column(seg, ["duration"])
+        off_col = _first_populated_column(seg, ["offset", "start", "timeline"])
+        dur_col = _first_populated_column(seg, ["duration"])
         idx_col = _find_column(seg, ["index"])
         for i, row in seg.iterrows():
             ti = int(row[idx_col]) if idx_col is not None and pd.notna(row[idx_col]) else i
@@ -142,6 +161,24 @@ def _clear_rows(ws, start_row: int, end_row: int) -> None:
 def _drop_images(ws) -> None:
     if hasattr(ws, "_images"):
         ws._images = []
+
+
+def _reset_data_fills(ws, start_row: int, end_row: int) -> None:
+    """Clear solid cell fills left over from the template example on data rows.
+
+    The shipped template highlights an example cell red (3_INDEX_SCORES!C6, the
+    F03 tags cell). Structural reds live in header rows / other sheets and are not
+    touched here.
+    """
+
+    from openpyxl.styles import PatternFill
+
+    blank = PatternFill(fill_type=None)
+    for row in range(start_row, end_row + 1):
+        for col in range(1, ws.max_column + 1):
+            cell = ws.cell(row, col)
+            if cell.fill is not None and cell.fill.patternType == "solid":
+                cell.fill = blank
 
 
 def _extend_formula_rows(ws, template_row: int, first_new_row: int, last_new_row: int) -> None:
@@ -210,10 +247,19 @@ def build_template3_workbook(
         for col, term in term_cols:
             val = seg["r"].get((seg["time_index"], term))
             ws_raw.cell(r, col).value = float(val) if val is not None else None
+        # reset the manual markup flags to a clean 0 skeleton (the shipped template
+        # ships example values like LOGO=1 on some frames; those must not leak in)
+        for col in MARKUP_FLAG_COLS:
+            ws_mark.cell(r, col).value = 0
         if frame_png_provider is not None:
             png = frame_png_provider(seg["offset"], seg["duration"])
             _embed_frame(ws_raw, r, png)
             _embed_frame(ws_mark, r, png)
+
+    # 1b) strip leftover example cell fills (e.g. the red F03 tags cell) from data rows
+    fill_end = max(last_data_row, TEMPLATE_LAST_FRAME_ROW)
+    for ws in (ws_raw, ws_mark, ws_idx):
+        _reset_data_fills(ws, DATA_START_ROW, fill_end)
 
     # 2) fit the formula sheets (2_FRAME_MARKUP, 3_INDEX_SCORES) to exactly n rows
     if n < (TEMPLATE_LAST_FRAME_ROW - DATA_START_ROW + 1):
