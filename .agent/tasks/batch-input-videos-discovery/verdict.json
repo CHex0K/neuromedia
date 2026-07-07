@@ -1,0 +1,73 @@
+{
+  "task_id": "batch-input-videos-discovery",
+  "overall_verdict": "PASS",
+  "criteria": [
+    {
+      "id": "AC1",
+      "status": "PASS",
+      "reason": "Current notebook previously used direct-child batch scanning; evidence explains why that misses files under input/videos when input is selected."
+    },
+    {
+      "id": "AC2",
+      "status": "PASS",
+      "reason": "Fresh search confirms batch discovery now uses requested_path.rglob(\"*\") and no requested_path.iterdir remains."
+    },
+    {
+      "id": "AC3",
+      "status": "PASS",
+      "reason": "Fresh nested-directory test confirms MP4/AVI dedupe is scoped by parent folder and keeps nested files correctly."
+    },
+    {
+      "id": "AC4",
+      "status": "PASS",
+      "reason": "Fresh search confirms recursive no-files error, generic Videos found text, and recursive batch log message."
+    },
+    {
+      "id": "AC5",
+      "status": "PASS",
+      "reason": "Notebook JSON parsing, diff check, and proof-loop validation passed."
+    }
+  ],
+  "commands_run": [
+    {
+      "command": "python -m json.tool run_surface_decoder_colab.ipynb > $null; if ($LASTEXITCODE -eq 0) { 'notebook json ok' }",
+      "exit_code": 0,
+      "summary": "Notebook JSON parsed successfully."
+    },
+    {
+      "command": "rg -n 'requested_path\\.rglob|_mp4_keys|No \\.mp4/\\.avi files found recursively|Videos found|recursively for sequential|DEFAULT_INPUT_PATH' run_surface_decoder_colab.ipynb",
+      "exit_code": 0,
+      "summary": "Confirmed recursive discovery, nested dedupe key, updated default input path, and updated messages."
+    },
+    {
+      "command": "rg -n 'requested_path\\.iterdir' run_surface_decoder_colab.ipynb; if ($LASTEXITCODE -eq 1) { 'no requested_path.iterdir remains' }",
+      "exit_code": 0,
+      "summary": "Confirmed the direct-only batch scan no longer remains."
+    },
+    {
+      "command": "python -c \"from pathlib import Path; import tempfile; ...\"",
+      "exit_code": 0,
+      "summary": "Recursive discovery and parent-scoped dedupe test returned ['other/a.avi', 'videos/a.mp4', 'videos/b.avi']."
+    },
+    {
+      "command": "git diff --check -- run_surface_decoder_colab.ipynb .agent\\tasks\\batch-input-videos-discovery\\spec.md .agent\\tasks\\batch-input-videos-discovery\\evidence.md .agent\\tasks\\batch-input-videos-discovery\\evidence.json",
+      "exit_code": 0,
+      "summary": "No whitespace errors were reported; Git emitted only a line-ending normalization warning for the notebook."
+    },
+    {
+      "command": "python .agents\\skills\\repo-task-proof-loop\\scripts\\task_loop.py validate --task-id batch-input-videos-discovery",
+      "exit_code": 0,
+      "summary": "Proof-loop artifacts are valid."
+    }
+  ],
+  "artifacts_used": [
+    ".agent/tasks/batch-input-videos-discovery/spec.md",
+    ".agent/tasks/batch-input-videos-discovery/evidence.md",
+    ".agent/tasks/batch-input-videos-discovery/evidence.json",
+    ".agent/tasks/batch-input-videos-discovery/raw/build.txt",
+    ".agent/tasks/batch-input-videos-discovery/raw/test-unit.txt",
+    ".agent/tasks/batch-input-videos-discovery/raw/test-integration.txt",
+    ".agent/tasks/batch-input-videos-discovery/raw/lint.txt"
+  ],
+  "freshness_note": "Verifier pass was run as a strict separate phase in the parent session. A subagent was not spawned because the active multi-agent tool requires explicit user permission for delegation."
+}

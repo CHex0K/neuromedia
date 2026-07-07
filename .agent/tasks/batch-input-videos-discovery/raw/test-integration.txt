@@ -1,0 +1,23 @@
+No live Colab/Google Drive integration test was run from this local environment.
+
+Local replacement checks:
+
+1. Notebook JSON parse:
+   Command: python -m json.tool run_surface_decoder_colab.ipynb > $null; if ($LASTEXITCODE -eq 0) { 'notebook json ok' }
+   Exit code: 0
+   Output: notebook json ok
+
+2. Static notebook source search:
+   Command: rg -n 'DEFAULT_INPUT_PATH|requested_path\.rglob|requested_path\.iterdir|_mp4_keys|No \.mp4/\.avi files found|Videos found|recursively for sequential' run_surface_decoder_colab.ipynb
+   Exit code: 0
+   Output summary:
+   - `DEFAULT_INPUT_PATH` now points to `/content/drive/MyDrive/neuromedia/input/videos`.
+   - Batch mode uses `requested_path.rglob("*")`.
+   - No `requested_path.iterdir` match appears in this search output.
+   - Error/log/UI messages mention recursive search and generic videos.
+
+Live Colab smoke test for the user:
+- Restart/rerun the notebook launch cell after uploading this notebook.
+- Keep `Mount Google Drive if needed` enabled.
+- Use input path `/content/drive/MyDrive/neuromedia/input/videos` or parent `/content/drive/MyDrive/neuromedia/input`.
+- The batch log should now say `Found N .mp4/.avi file(s) recursively for sequential processing.`

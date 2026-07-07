@@ -1,0 +1,78 @@
+{
+  "task_id": "drive-input-file-not-found",
+  "overall_status": "PASS",
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "text": "The pasted log is analyzed and the real failing step is distinguished from non-fatal dependency resolver warnings.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "artifact",
+          "path": ".agent/tasks/drive-input-file-not-found/raw/build.txt",
+          "summary": "Pasted log shows pip completed successfully, hybrid import check succeeded, and the later FileNotFoundError is the actual failure."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC2",
+      "text": "The repository code path that constructs and checks `/content/drive/MyDrive/neuromedia/input/1.mp4` is identified with relevant file references.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/drive-input-file-not-found/raw/build.txt",
+          "command": "rg -n 'DEFAULT_ROOT_DIR|DEFAULT_INPUT_PATH|def maybe_mount_drive|if force_remount|def describe_missing_input|visible_files =|similar_files =|def analyze_video|input_dir = root / \"input\"|requested_path = Path|not requested_path\\.is_file|force_remount_drive_input' run_surface_decoder_colab.ipynb",
+          "exit_code": 0,
+          "summary": "Found notebook lines for default Drive root, requested path parsing, input directory creation, missing-file diagnostic, and force-remount UI default."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC3",
+      "text": "The most likely root cause is stated in a way that explains why Google Drive web UI can show `1.mp4` while Colab reports an empty mounted folder.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "artifact",
+          "path": ".agent/tasks/drive-input-file-not-found/evidence.md",
+          "summary": "Root cause is identified as Colab's mounted Drive not seeing the browser-visible file, most likely due to stale FUSE mount or different authenticated Google account; path/case mismatch remains a secondary check."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC4",
+      "text": "Concrete remediation and diagnostic steps are provided for the Colab runtime without requiring unrequested production-code changes.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "artifact",
+          "path": ".agent/tasks/drive-input-file-not-found/raw/test-integration.txt",
+          "summary": "Contains Colab Path diagnostics and force-remount snippet."
+        }
+      ],
+      "gaps": []
+    }
+  ],
+  "changed_files": [
+    ".agent/tasks/drive-input-file-not-found/spec.md",
+    ".agent/tasks/drive-input-file-not-found/evidence.md",
+    ".agent/tasks/drive-input-file-not-found/evidence.json",
+    ".agent/tasks/drive-input-file-not-found/raw/build.txt",
+    ".agent/tasks/drive-input-file-not-found/raw/test-unit.txt",
+    ".agent/tasks/drive-input-file-not-found/raw/test-integration.txt",
+    ".agent/tasks/drive-input-file-not-found/raw/lint.txt"
+  ],
+  "commands_for_fresh_verifier": [
+    "Get-Content -LiteralPath C:\\Users\\alexz\\.codex\\attachments\\ec94b4d3-c2db-4349-b93f-285387ddfaa4\\pasted-text.txt -Encoding UTF8 | Select-Object -Last 35",
+    "rg -n 'DEFAULT_ROOT_DIR|DEFAULT_INPUT_PATH|def maybe_mount_drive|if force_remount|def describe_missing_input|visible_files =|similar_files =|def analyze_video|input_dir = root / \"input\"|requested_path = Path|not requested_path\\.is_file|force_remount_drive_input' run_surface_decoder_colab.ipynb",
+    "Get-Content -LiteralPath run_surface_decoder_colab.ipynb -Encoding UTF8 | Select-Object -Skip 860 -First 75",
+    "python .agents\\skills\\repo-task-proof-loop\\scripts\\task_loop.py validate --task-id drive-input-file-not-found"
+  ],
+  "known_gaps": [
+    "The live Colab runtime and Google Drive account cannot be inspected from this local repository session."
+  ]
+}

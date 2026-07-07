@@ -1,0 +1,73 @@
+{
+  "task_id": "restore-direct-batch-input",
+  "overall_verdict": "PASS",
+  "criteria": [
+    {
+      "id": "AC1",
+      "status": "PASS",
+      "reason": "Fresh static search confirms DEFAULT_INPUT_PATH is `/content/drive/MyDrive/neuromedia/input`."
+    },
+    {
+      "id": "AC2",
+      "status": "PASS",
+      "reason": "Fresh static search confirms `requested_path.iterdir()` is used and `requested_path.rglob` is absent."
+    },
+    {
+      "id": "AC3",
+      "status": "PASS",
+      "reason": "Fresh direct-folder test confirms only direct `.mp4/.avi` files are processed and same-stem `.avi` is skipped when `.mp4` exists."
+    },
+    {
+      "id": "AC4",
+      "status": "PASS",
+      "reason": "Fresh static search confirms direct-folder no-files and batch messages, with no recursive wording."
+    },
+    {
+      "id": "AC5",
+      "status": "PASS",
+      "reason": "Notebook JSON parse, diff check, and proof-loop validation passed."
+    },
+    {
+      "id": "AC6",
+      "status": "PASS",
+      "reason": "The final response will explain current direct-folder mass processing behavior and limitations."
+    }
+  ],
+  "commands_run": [
+    {
+      "command": "python -m json.tool run_surface_decoder_colab.ipynb > $null; if ($LASTEXITCODE -eq 0) { 'notebook json ok' }",
+      "exit_code": 0,
+      "summary": "Notebook JSON parsed successfully."
+    },
+    {
+      "command": "rg -n 'DEFAULT_INPUT_PATH|requested_path\\.iterdir|requested_path\\.rglob|_mp4_stems|_mp4_keys|No \\.mp4/\\.avi files found|MP4 videos found|recursively for sequential' run_surface_decoder_colab.ipynb",
+      "exit_code": 0,
+      "summary": "Confirmed default input path, direct-child folder scan, direct MP4/AVI dedupe, and absence of recursive scan/log text."
+    },
+    {
+      "command": "python -c \"from pathlib import Path; import tempfile; ...\"",
+      "exit_code": 0,
+      "summary": "Direct-folder test returned `['a.mp4', 'b.avi']`, ignoring nested `nested/c.avi`."
+    },
+    {
+      "command": "git diff --check -- run_surface_decoder_colab.ipynb .agent\\tasks\\restore-direct-batch-input\\spec.md .agent\\tasks\\restore-direct-batch-input\\evidence.md .agent\\tasks\\restore-direct-batch-input\\evidence.json",
+      "exit_code": 0,
+      "summary": "No whitespace errors were reported; Git emitted only a line-ending normalization warning for the notebook."
+    },
+    {
+      "command": "python .agents\\skills\\repo-task-proof-loop\\scripts\\task_loop.py validate --task-id restore-direct-batch-input",
+      "exit_code": 0,
+      "summary": "Proof-loop artifacts are valid."
+    }
+  ],
+  "artifacts_used": [
+    ".agent/tasks/restore-direct-batch-input/spec.md",
+    ".agent/tasks/restore-direct-batch-input/evidence.md",
+    ".agent/tasks/restore-direct-batch-input/evidence.json",
+    ".agent/tasks/restore-direct-batch-input/raw/build.txt",
+    ".agent/tasks/restore-direct-batch-input/raw/test-unit.txt",
+    ".agent/tasks/restore-direct-batch-input/raw/test-integration.txt",
+    ".agent/tasks/restore-direct-batch-input/raw/lint.txt"
+  ],
+  "freshness_note": "Verifier pass was run as a strict separate phase in the parent session. A subagent was not spawned because the active multi-agent tool requires explicit user permission for delegation."
+}

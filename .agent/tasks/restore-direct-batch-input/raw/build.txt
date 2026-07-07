@@ -1,0 +1,22 @@
+Task type: revert previous assistant change and document batch behavior.
+
+Production file changed:
+- `run_surface_decoder_colab.ipynb`
+
+Patch summary:
+- Restored the default input path away from `input/videos`.
+- Set default input path to the requested direct batch folder:
+  `/content/drive/MyDrive/neuromedia/input`
+- Restored batch discovery to direct child scanning:
+  `requested_path.iterdir()`
+- Removed recursive batch behavior:
+  no `requested_path.rglob("*")` remains.
+- Restored same-stem `.mp4` preference over `.avi` using `_mp4_stems`.
+- Restored non-recursive no-files and batch log text.
+
+Relevant current notebook lines from static search:
+- `DEFAULT_INPUT_PATH = "/content/drive/MyDrive/neuromedia/input"`
+- `for path in requested_path.iterdir()`
+- `_mp4_stems = {p.stem for p in input_files if p.suffix.lower() == ".mp4"}`
+- `No .mp4/.avi files found in input directory`
+- `MP4 videos found: {len(input_files)}`

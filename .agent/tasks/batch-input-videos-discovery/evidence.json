@@ -1,0 +1,104 @@
+{
+  "task_id": "batch-input-videos-discovery",
+  "overall_status": "PASS",
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "text": "The current failure mode is explained from repository code: batch folder input scans only direct children and therefore misses videos under `input/videos` when the selected folder is `input`.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "artifact",
+          "path": ".agent/tasks/batch-input-videos-discovery/raw/build.txt",
+          "summary": "Documents the pre-patch direct-child `iterdir()` scan and why nested `input/videos` files were missed."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC2",
+      "text": "`run_surface_decoder_colab.ipynb` is updated so batch folder input discovers `.mp4` and `.avi` videos recursively under the selected folder.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/batch-input-videos-discovery/raw/test-integration.txt",
+          "command": "rg -n 'DEFAULT_INPUT_PATH|requested_path\\.rglob|requested_path\\.iterdir|_mp4_keys|No \\.mp4/\\.avi files found|Videos found|recursively for sequential' run_surface_decoder_colab.ipynb",
+          "exit_code": 0,
+          "summary": "Static search confirms `requested_path.rglob(\"*\")` is present and the direct-only batch scan is absent from the relevant output."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC3",
+      "text": "The existing AVI/MP4 duplicate handling remains in place and works for nested files by comparing stems within the same parent folder.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/batch-input-videos-discovery/raw/test-unit.txt",
+          "command": "python -c \"from pathlib import Path; import tempfile; ...\"",
+          "exit_code": 0,
+          "summary": "Temporary nested folder test retains `other/a.avi`, skips duplicate `videos/a.avi`, and keeps `videos/a.mp4` plus `videos/b.avi`."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC4",
+      "text": "User-visible batch messaging no longer says only \"MP4 videos found\" when AVI files are accepted, and the no-files error mentions recursive search.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "artifact",
+          "path": ".agent/tasks/batch-input-videos-discovery/raw/test-integration.txt",
+          "summary": "Static search confirms recursive no-files message, generic `Videos found`, and recursive batch log text."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC5",
+      "text": "The notebook remains valid JSON and the proof-loop artifacts validate with an overall `PASS`.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/batch-input-videos-discovery/raw/test-integration.txt",
+          "command": "python -m json.tool run_surface_decoder_colab.ipynb > $null; if ($LASTEXITCODE -eq 0) { 'notebook json ok' }",
+          "exit_code": 0,
+          "summary": "Notebook JSON parsed successfully."
+        },
+        {
+          "type": "command",
+          "path": ".agent/tasks/batch-input-videos-discovery/raw/lint.txt",
+          "command": "git diff --check -- run_surface_decoder_colab.ipynb .agent\\tasks\\batch-input-videos-discovery\\spec.md",
+          "exit_code": 0,
+          "summary": "No whitespace errors were reported."
+        }
+      ],
+      "gaps": []
+    }
+  ],
+  "changed_files": [
+    "run_surface_decoder_colab.ipynb",
+    ".agent/tasks/batch-input-videos-discovery/spec.md",
+    ".agent/tasks/batch-input-videos-discovery/evidence.md",
+    ".agent/tasks/batch-input-videos-discovery/evidence.json",
+    ".agent/tasks/batch-input-videos-discovery/raw/build.txt",
+    ".agent/tasks/batch-input-videos-discovery/raw/test-unit.txt",
+    ".agent/tasks/batch-input-videos-discovery/raw/test-integration.txt",
+    ".agent/tasks/batch-input-videos-discovery/raw/lint.txt"
+  ],
+  "commands_for_fresh_verifier": [
+    "python -m json.tool run_surface_decoder_colab.ipynb > $null; if ($LASTEXITCODE -eq 0) { 'notebook json ok' }",
+    "rg -n 'DEFAULT_INPUT_PATH|requested_path\\.rglob|requested_path\\.iterdir|_mp4_keys|No \\.mp4/\\.avi files found|Videos found|recursively for sequential' run_surface_decoder_colab.ipynb",
+    "python -c \"from pathlib import Path; import tempfile; exts={'.mp4','.avi'}; d=Path(tempfile.mkdtemp()); (d/'videos').mkdir(); (d/'other').mkdir(); (d/'videos'/'a.avi').write_text('', encoding='utf-8'); (d/'videos'/'a.mp4').write_text('', encoding='utf-8'); (d/'other'/'a.avi').write_text('', encoding='utf-8'); (d/'videos'/'b.avi').write_text('', encoding='utf-8'); files=sorted(p for p in d.rglob('*') if p.is_file() and p.suffix.lower() in exts); keys={(p.parent,p.stem) for p in files if p.suffix.lower()=='.mp4'}; files=[p for p in files if not (p.suffix.lower()=='.avi' and (p.parent,p.stem) in keys)]; result=[p.relative_to(d).as_posix() for p in files]; print(result); assert result == ['other/a.avi', 'videos/a.mp4', 'videos/b.avi']\"",
+    "git diff --check -- run_surface_decoder_colab.ipynb .agent\\tasks\\batch-input-videos-discovery\\spec.md",
+    "python .agents\\skills\\repo-task-proof-loop\\scripts\\task_loop.py validate --task-id batch-input-videos-discovery"
+  ],
+  "known_gaps": [
+    "Live Colab Google Drive mount behavior was not rerun from this local environment."
+  ]
+}

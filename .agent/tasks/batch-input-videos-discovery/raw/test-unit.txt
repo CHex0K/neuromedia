@@ -1,0 +1,12 @@
+Command:
+python -c "from pathlib import Path; import tempfile; exts={'.mp4','.avi'}; d=Path(tempfile.mkdtemp()); (d/'videos').mkdir(); (d/'other').mkdir(); (d/'videos'/'a.avi').write_text('', encoding='utf-8'); (d/'videos'/'a.mp4').write_text('', encoding='utf-8'); (d/'other'/'a.avi').write_text('', encoding='utf-8'); (d/'videos'/'b.avi').write_text('', encoding='utf-8'); files=sorted(p for p in d.rglob('*') if p.is_file() and p.suffix.lower() in exts); keys={(p.parent,p.stem) for p in files if p.suffix.lower()=='.mp4'}; files=[p for p in files if not (p.suffix.lower()=='.avi' and (p.parent,p.stem) in keys)]; result=[p.relative_to(d).as_posix() for p in files]; print(result); assert result == ['other/a.avi', 'videos/a.mp4', 'videos/b.avi']"
+
+Exit code: 0
+
+Output:
+['other/a.avi', 'videos/a.mp4', 'videos/b.avi']
+
+Meaning:
+- Recursive discovery finds files under nested `videos/`.
+- If `videos/a.mp4` exists, `videos/a.avi` is skipped.
+- `other/a.avi` is retained because it has the same stem in a different parent folder.

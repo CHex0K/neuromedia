@@ -1,0 +1,119 @@
+{
+  "task_id": "restore-direct-batch-input",
+  "overall_status": "PASS",
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "text": "`run_surface_decoder_colab.ipynb` uses `/content/drive/MyDrive/neuromedia/input` as the default input path.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/restore-direct-batch-input/raw/test-integration.txt",
+          "command": "rg -n 'DEFAULT_INPUT_PATH|requested_path\\.iterdir|requested_path\\.rglob|_mp4_stems|_mp4_keys|No \\.mp4/\\.avi files found|MP4 videos found|recursively for sequential' run_surface_decoder_colab.ipynb",
+          "exit_code": 0,
+          "summary": "Static search confirms the default input path is `/content/drive/MyDrive/neuromedia/input`."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC2",
+      "text": "Batch folder mode does not recurse into nested folders; it scans only direct child files of the selected folder.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/restore-direct-batch-input/raw/test-unit.txt",
+          "command": "python -c \"from pathlib import Path; import tempfile; ...\"",
+          "exit_code": 0,
+          "summary": "Direct-folder test returns only direct files and ignores a nested `.avi` file."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC3",
+      "text": "Batch folder mode accepts only direct `.mp4` and `.avi` files and keeps the existing behavior of preferring `.mp4` over same-stem `.avi`.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/restore-direct-batch-input/raw/test-unit.txt",
+          "command": "python -c \"from pathlib import Path; import tempfile; ...\"",
+          "exit_code": 0,
+          "summary": "Test output is `['a.mp4', 'b.avi']`, proving direct same-stem `a.avi` is skipped when `a.mp4` exists."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC4",
+      "text": "User-visible batch messages match direct-folder processing and do not claim recursive search.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "artifact",
+          "path": ".agent/tasks/restore-direct-batch-input/raw/test-integration.txt",
+          "summary": "Static search confirms direct no-files message and absence of recursive log text."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC5",
+      "text": "The notebook remains valid JSON and proof-loop validation reports `PASS`.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/restore-direct-batch-input/raw/test-integration.txt",
+          "command": "python -m json.tool run_surface_decoder_colab.ipynb > $null; if ($LASTEXITCODE -eq 0) { 'notebook json ok' }",
+          "exit_code": 0,
+          "summary": "Notebook JSON parsed successfully."
+        },
+        {
+          "type": "command",
+          "path": ".agent/tasks/restore-direct-batch-input/raw/lint.txt",
+          "command": "git diff --check -- run_surface_decoder_colab.ipynb .agent\\tasks\\restore-direct-batch-input\\spec.md",
+          "exit_code": 0,
+          "summary": "No whitespace errors were reported."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC6",
+      "text": "The final response explains how mass video processing works, including the direct-folder limitation.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "artifact",
+          "path": ".agent/tasks/restore-direct-batch-input/evidence.md",
+          "summary": "The final response is part of task completion and will describe the direct-folder batch behavior."
+        }
+      ],
+      "gaps": []
+    }
+  ],
+  "changed_files": [
+    "run_surface_decoder_colab.ipynb",
+    ".agent/tasks/restore-direct-batch-input/spec.md",
+    ".agent/tasks/restore-direct-batch-input/evidence.md",
+    ".agent/tasks/restore-direct-batch-input/evidence.json",
+    ".agent/tasks/restore-direct-batch-input/raw/build.txt",
+    ".agent/tasks/restore-direct-batch-input/raw/test-unit.txt",
+    ".agent/tasks/restore-direct-batch-input/raw/test-integration.txt",
+    ".agent/tasks/restore-direct-batch-input/raw/lint.txt"
+  ],
+  "commands_for_fresh_verifier": [
+    "python -m json.tool run_surface_decoder_colab.ipynb > $null; if ($LASTEXITCODE -eq 0) { 'notebook json ok' }",
+    "rg -n 'DEFAULT_INPUT_PATH|requested_path\\.iterdir|requested_path\\.rglob|_mp4_stems|_mp4_keys|No \\.mp4/\\.avi files found|MP4 videos found|recursively for sequential' run_surface_decoder_colab.ipynb",
+    "python -c \"from pathlib import Path; import tempfile; exts={'.mp4','.avi'}; d=Path(tempfile.mkdtemp()); (d/'nested').mkdir(); (d/'a.avi').write_text('', encoding='utf-8'); (d/'a.mp4').write_text('', encoding='utf-8'); (d/'b.avi').write_text('', encoding='utf-8'); (d/'nested'/'c.avi').write_text('', encoding='utf-8'); files=sorted(p for p in d.iterdir() if p.is_file() and p.suffix.lower() in exts); stems={p.stem for p in files if p.suffix.lower()=='.mp4'}; files=[p for p in files if not (p.suffix.lower()=='.avi' and p.stem in stems)]; result=[p.relative_to(d).as_posix() for p in files]; print(result); assert result == ['a.mp4', 'b.avi']\"",
+    "git diff --check -- run_surface_decoder_colab.ipynb .agent\\tasks\\restore-direct-batch-input\\spec.md",
+    "python .agents\\skills\\repo-task-proof-loop\\scripts\\task_loop.py validate --task-id restore-direct-batch-input"
+  ],
+  "known_gaps": [
+    "Live Colab Google Drive batch run was not executed from this local environment."
+  ]
+}

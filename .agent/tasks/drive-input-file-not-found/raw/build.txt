@@ -1,0 +1,50 @@
+Task type: diagnostic investigation; no production build was required.
+
+Commands and observations:
+
+1. Read pasted Colab log:
+   Command: Get-Content -LiteralPath C:\Users\alexz\.codex\attachments\ec94b4d3-c2db-4349-b93f-285387ddfaa4\pasted-text.txt -Encoding UTF8
+   Exit code: 0
+   Relevant output:
+   - pip finished with "Successfully installed ..." for torch, gradio, transformers, gigaam, onnxruntime dependencies.
+   - hybrid import check succeeded: "hybrid import check ok 1.27.0".
+   - actual exception:
+     FileNotFoundError: Input file not found: /content/drive/MyDrive/neuromedia/input/1.mp4
+     Google Drive mounted: True
+     Requested parent exists: True
+     Visible files in /content/drive/MyDrive/neuromedia/input:
+     - <no files>
+
+2. Searched notebook path/mount/input logic:
+   Command: rg -n 'DEFAULT_ROOT_DIR|DEFAULT_INPUT_PATH|def maybe_mount_drive|if force_remount|def describe_missing_input|visible_files =|similar_files =|def analyze_video|input_dir = root / "input"|requested_path = Path|not requested_path\.is_file|force_remount_drive_input' run_surface_decoder_colab.ipynb
+   Exit code: 0
+   Relevant output:
+   - run_surface_decoder_colab.ipynb:122 DEFAULT_ROOT_DIR = "/content/drive/MyDrive/neuromedia"
+   - run_surface_decoder_colab.ipynb:123 DEFAULT_INPUT_PATH = "/content/drive/MyDrive/neuromedia/input/4590080h.mp4"
+   - run_surface_decoder_colab.ipynb:512 defines maybe_mount_drive(...)
+   - run_surface_decoder_colab.ipynb:525 handles force_remount
+   - run_surface_decoder_colab.ipynb:554 defines describe_missing_input(...)
+   - run_surface_decoder_colab.ipynb:571 lists visible files with search_dir.iterdir()
+   - run_surface_decoder_colab.ipynb:794 defines analyze_video(...)
+   - run_surface_decoder_colab.ipynb:936 requested_path = Path(video_path).expanduser()
+   - run_surface_decoder_colab.ipynb:962 checks "if not requested_path.is_file()"
+   - run_surface_decoder_colab.ipynb:1394 force remount checkbox defaults to True
+
+3. Inspected code around input directory creation:
+   Command: Get-Content -LiteralPath run_surface_decoder_colab.ipynb -Encoding UTF8 | Select-Object -Skip 860 -First 75
+   Exit code: 0
+   Relevant output:
+   - root = Path(root_dir).expanduser()
+   - input_dir = root / "input"
+   - path.mkdir(parents=True, exist_ok=True) is called for input_dir before checking requested_path.
+   - requested_path = Path(video_path).expanduser()
+   - if not requested_path.is_file(): raise FileNotFoundError(describe_missing_input(...))
+
+Conclusion:
+The failing condition is that Colab's mounted filesystem does not see
+/content/drive/MyDrive/neuromedia/input/1.mp4 at runtime. The log proves the
+folder visible to Colab contains no files. The most likely causes are a stale
+Google Drive FUSE mount or a Colab Drive mount authenticated to a different
+Google account than the browser Drive view. A path typo/case/extension mismatch
+is possible but less likely given the screenshot, and can be checked with the
+diagnostic commands in evidence.md.

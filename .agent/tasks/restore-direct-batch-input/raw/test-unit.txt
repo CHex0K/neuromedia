@@ -1,0 +1,12 @@
+Command:
+python -c "from pathlib import Path; import tempfile; exts={'.mp4','.avi'}; d=Path(tempfile.mkdtemp()); (d/'nested').mkdir(); (d/'a.avi').write_text('', encoding='utf-8'); (d/'a.mp4').write_text('', encoding='utf-8'); (d/'b.avi').write_text('', encoding='utf-8'); (d/'nested'/'c.avi').write_text('', encoding='utf-8'); files=sorted(p for p in d.iterdir() if p.is_file() and p.suffix.lower() in exts); stems={p.stem for p in files if p.suffix.lower()=='.mp4'}; files=[p for p in files if not (p.suffix.lower()=='.avi' and p.stem in stems)]; result=[p.relative_to(d).as_posix() for p in files]; print(result); assert result == ['a.mp4', 'b.avi']"
+
+Exit code: 0
+
+Output:
+['a.mp4', 'b.avi']
+
+Meaning:
+- Direct `.mp4/.avi` files in the selected folder are processed.
+- Nested `nested/c.avi` is ignored.
+- Same-stem direct `a.avi` is ignored when direct `a.mp4` exists.

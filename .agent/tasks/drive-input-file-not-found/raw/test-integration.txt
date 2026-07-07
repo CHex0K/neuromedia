@@ -1,0 +1,23 @@
+No local integration test was run.
+
+Reason: reproducing the exact failure requires the user's Colab runtime and the
+Google Drive account mounted at /content/drive. Local repository inspection can
+prove the code path and error semantics, but cannot inspect the user's live
+Drive FUSE mount.
+
+Recommended Colab diagnostics:
+
+from pathlib import Path
+target = Path("/content/drive/MyDrive/neuromedia/input/1.mp4")
+parent = target.parent
+print("target exists:", target.exists(), "is_file:", target.is_file())
+print("parent exists:", parent.exists())
+print("files:", [p.name for p in parent.iterdir()] if parent.exists() else "<no parent>")
+
+from google.colab import drive
+drive.flush_and_unmount()
+drive.mount("/content/drive", force_remount=True)
+
+After remount, rerun the same Path checks. If the folder is still empty, the
+runtime is mounted to a different Google account or the file is not actually in
+that account's My Drive path.

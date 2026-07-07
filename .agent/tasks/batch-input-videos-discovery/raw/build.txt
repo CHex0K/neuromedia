@@ -1,0 +1,30 @@
+Task type: notebook bug fix.
+
+Problem confirmed before the patch:
+- Screenshot shows videos under Google Drive folder `neuromedia/input/videos`.
+- `run_surface_decoder_colab.ipynb` batch mode used `requested_path.iterdir()`.
+- `iterdir()` scans only direct children of the selected folder, so selecting
+  `/content/drive/MyDrive/neuromedia/input` misses videos nested under
+  `/content/drive/MyDrive/neuromedia/input/videos`.
+
+Production file changed:
+- `run_surface_decoder_colab.ipynb`
+
+Patch summary:
+- Changed default input path from:
+  `/content/drive/MyDrive/neuromedia/input/4590080h.mp4`
+  to:
+  `/content/drive/MyDrive/neuromedia/input/videos`
+- Changed batch discovery from `requested_path.iterdir()` to
+  `requested_path.rglob("*")`.
+- Changed MP4/AVI dedupe key from global `stem` to `(parent, stem)` so nested
+  folders do not suppress unrelated AVI files with the same name stem.
+- Changed no-files error to say the folder is searched recursively.
+- Changed UI text from `MP4 videos found` to `Videos found`.
+
+Relevant diff summary:
+- `DEFAULT_INPUT_PATH = "/content/drive/MyDrive/neuromedia/input/videos"`
+- `for path in requested_path.rglob("*")`
+- `_mp4_keys = {(p.parent, p.stem) ...}`
+- `No .mp4/.avi files found recursively in input directory`
+- `Videos found: {len(input_files)}`
