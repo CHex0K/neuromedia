@@ -1,0 +1,43 @@
+{
+  "task_id": "xlsx-extended-row-styles",
+  "overall_verdict": "PASS",
+  "criteria": [
+    {
+      "id": "AC1",
+      "status": "PASS",
+      "reason": "Generated row 24 formatting matches row 23 on all relevant Template_3 sheets in the current code."
+    },
+    {
+      "id": "AC2",
+      "status": "PASS",
+      "reason": "Raw values, translated formula rows, and static markup values are preserved for F21."
+    },
+    {
+      "id": "AC3",
+      "status": "PASS",
+      "reason": "Red fill cleanup and zeroed manual markup defaults remain in effect."
+    },
+    {
+      "id": "AC4",
+      "status": "PASS",
+      "reason": "A 20-row workbook still stops at F20 without adding F21."
+    },
+    {
+      "id": "AC5",
+      "status": "PASS",
+      "reason": "Syntax, unit helper, generated workbook, and diff hygiene checks passed."
+    }
+  ],
+  "commands_run": [
+    "python -m py_compile template3_report.py",
+    "Direct _copy_row_format() unit check via python stdin",
+    "Synthetic Template_3 workbook style/formula integration check via python stdin",
+    "git diff --check -- template3_report.py .agent/tasks/xlsx-extended-row-styles/spec.md"
+  ],
+  "artifacts_used": [
+    ".agent/tasks/xlsx-extended-row-styles/raw/build.txt",
+    ".agent/tasks/xlsx-extended-row-styles/raw/test-unit.txt",
+    ".agent/tasks/xlsx-extended-row-styles/raw/test-integration.txt",
+    ".agent/tasks/xlsx-extended-row-styles/raw/lint.txt"
+  ]
+}

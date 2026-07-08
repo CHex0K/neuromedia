@@ -1,0 +1,5 @@
+﻿1_RAW_CORRELATIONS: row 24 style matches row 23; 2_FRAME_MARKUP: row 24 style matches row 23; 3_INDEX_SCORES: row 24 style matches row 23
+raw A24 F21 raw B24 20
+row 24 formulas 19
+red fills removed True
+20-row workbook stops at F20

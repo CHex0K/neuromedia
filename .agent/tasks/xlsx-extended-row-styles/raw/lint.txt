@@ -1,0 +1,6 @@
+﻿git : warning: in the working copy of 'template3_report.py', LF will be replaced by CRLF the next time Git touches it
+At line:2 char:8
++ $out = git diff --check -- template3_report.py .agent\tasks\xlsx-exte ...
++        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (warning: in the... Git touches it:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError

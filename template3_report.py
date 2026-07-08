@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import io
 import logging
+from copy import copy
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -254,12 +255,45 @@ def _remove_red_fills(wb) -> None:
                     cell.fill = blank
 
 
+def _copy_row_format(ws, template_row: int, target_row: int) -> None:
+    """Copy cell and row formatting without touching values or formulas."""
+
+    src_dim = ws.row_dimensions[template_row]
+    dst_dim = ws.row_dimensions[target_row]
+    if src_dim.height is not None and dst_dim.height is None:
+        dst_dim.height = src_dim.height
+    dst_dim.hidden = src_dim.hidden
+    dst_dim.outlineLevel = src_dim.outlineLevel
+    dst_dim.collapsed = src_dim.collapsed
+
+    for col in range(1, ws.max_column + 1):
+        src = ws.cell(template_row, col)
+        dst = ws.cell(target_row, col)
+        if src.has_style:
+            dst.font = copy(src.font)
+            dst.fill = copy(src.fill)
+            dst.border = copy(src.border)
+            dst.alignment = copy(src.alignment)
+            dst.protection = copy(src.protection)
+            dst.number_format = src.number_format
+
+
+def _copy_extended_row_formats(ws, template_row: int, first_new_row: int, last_new_row: int) -> None:
+    """Apply the template data-row formatting to dynamically added rows."""
+
+    if last_new_row < first_new_row:
+        return
+    for new_row in range(first_new_row, last_new_row + 1):
+        _copy_row_format(ws, template_row, new_row)
+
+
 def _extend_formula_rows(ws, template_row: int, first_new_row: int, last_new_row: int) -> None:
     """Copy the template's formula/static row down to new rows, shifting refs."""
 
     from openpyxl.formula.translate import Translator
 
     for new_row in range(first_new_row, last_new_row + 1):
+        _copy_row_format(ws, template_row, new_row)
         for col in range(1, ws.max_column + 1):
             src = ws.cell(template_row, col)
             dst = ws.cell(new_row, col)
@@ -407,6 +441,8 @@ def build_template3_workbook(
     _drop_images(ws_raw)
     _drop_images(ws_mark)
     _clear_rows(ws_raw, DATA_START_ROW, max(ws_raw.max_row, TEMPLATE_LAST_FRAME_ROW))
+    if n > (TEMPLATE_LAST_FRAME_ROW - DATA_START_ROW + 1):
+        _copy_extended_row_formats(ws_raw, TEMPLATE_LAST_FRAME_ROW, TEMPLATE_LAST_FRAME_ROW + 1, last_data_row)
     for i, seg in enumerate(rows):
         r = DATA_START_ROW + i
         ws_raw.cell(r, 1).value = seg["frame_id"]

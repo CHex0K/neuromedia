@@ -1,0 +1,76 @@
+{
+  "task_id": "xlsx-extended-row-styles",
+  "overall_status": "PASS",
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "text": "Generated Template_3 XLSX files with more than 20 segment rows copy visual row/cell formatting from the template data row to every added row on 1_RAW_CORRELATIONS, 2_FRAME_MARKUP, and 3_INDEX_SCORES.",
+      "status": "PASS",
+      "proof": [
+        "template3_report.py adds _copy_row_format() and applies it to raw and formula-sheet rows added beyond the template.",
+        "raw/test-integration.txt proves row 24 style matches row 23 on 1_RAW_CORRELATIONS, 2_FRAME_MARKUP, and 3_INDEX_SCORES."
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC2",
+      "text": "Existing formula/value behavior is preserved: added formula-sheet rows still receive translated formulas/static values, and raw rows still receive generated frame ids, seconds, scene descriptions, and term scores.",
+      "status": "PASS",
+      "proof": [
+        "raw/test-integration.txt proves raw A24=F21, raw B24=20, row 24 formulas exist, and markup formula/static zero cells are preserved."
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC3",
+      "text": "Existing cleanup behavior is preserved, including removal of red fills and clean manual markup defaults.",
+      "status": "PASS",
+      "proof": [
+        "raw/test-integration.txt proves red fills are removed and markup E24:J24 stay 0."
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC4",
+      "text": "Reports with 20 or fewer rows keep the existing behavior.",
+      "status": "PASS",
+      "proof": [
+        "raw/test-integration.txt proves a 20-row workbook stops at F20 and does not create F21."
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC5",
+      "text": "Focused checks prove syntax, generated workbook style parity for row F21+, formula preservation, and diff hygiene.",
+      "status": "PASS",
+      "proof": [
+        "raw/build.txt records python -m py_compile template3_report.py passing.",
+        "raw/test-unit.txt records direct row-format helper passing.",
+        "raw/test-integration.txt records synthetic workbook checks passing.",
+        "raw/lint.txt records git diff --check passing with only a line-ending warning."
+      ],
+      "gaps": []
+    }
+  ],
+  "changed_files": [
+    "template3_report.py",
+    ".agent/tasks/xlsx-extended-row-styles/spec.md",
+    ".agent/tasks/xlsx-extended-row-styles/evidence.md",
+    ".agent/tasks/xlsx-extended-row-styles/evidence.json",
+    ".agent/tasks/xlsx-extended-row-styles/verdict.json",
+    ".agent/tasks/xlsx-extended-row-styles/problems.md",
+    ".agent/tasks/xlsx-extended-row-styles/raw/build.txt",
+    ".agent/tasks/xlsx-extended-row-styles/raw/test-unit.txt",
+    ".agent/tasks/xlsx-extended-row-styles/raw/test-integration.txt",
+    ".agent/tasks/xlsx-extended-row-styles/raw/lint.txt"
+  ],
+  "commands_for_fresh_verifier": [
+    "python -m py_compile template3_report.py",
+    "Run the _copy_row_format() helper snippet recorded in raw/test-unit.txt.",
+    "Run the synthetic Template_3 workbook style/formula snippet recorded in raw/test-integration.txt.",
+    "git diff --check -- template3_report.py .agent/tasks/xlsx-extended-row-styles/spec.md .agent/tasks/xlsx-extended-row-styles/evidence.md .agent/tasks/xlsx-extended-row-styles/evidence.json .agent/tasks/xlsx-extended-row-styles/verdict.json .agent/tasks/xlsx-extended-row-styles/problems.md"
+  ],
+  "known_gaps": [
+    "Existing .xlsx files are not modified; reports must be regenerated."
+  ]
+}
