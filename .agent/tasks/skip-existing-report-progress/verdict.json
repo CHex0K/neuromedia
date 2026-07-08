@@ -1,0 +1,43 @@
+{
+  "task_id": "skip-existing-report-progress",
+  "overall_verdict": "PASS",
+  "criteria": [
+    {
+      "id": "AC1",
+      "status": "PASS",
+      "reason": "The existing-report branch runs before AVI conversion, TRIBE cache, TRIBE execution, decoder, and report rebuild stages."
+    },
+    {
+      "id": "AC2",
+      "status": "PASS",
+      "reason": "Skipped reports are appended to processed_reports, assigned to final_report_file, and therefore included by the existing batch ZIP loop."
+    },
+    {
+      "id": "AC3",
+      "status": "PASS",
+      "reason": "The skip branch continues inside the existing per-video try/finally, so progress advances by file_index / total_inputs."
+    },
+    {
+      "id": "AC4",
+      "status": "PASS",
+      "reason": "When the report ZIP is missing or empty, the code falls through to the unchanged TRIBE cache and processing path."
+    },
+    {
+      "id": "AC5",
+      "status": "PASS",
+      "reason": "Notebook compile, source checks, and diff hygiene checks passed."
+    }
+  ],
+  "commands_run": [
+    "Compile all Python code cells from run_surface_decoder_colab.ipynb",
+    "Static skip behavior check via python stdin",
+    "Integration source-order check via python stdin",
+    "git diff --check -- run_surface_decoder_colab.ipynb .agent/tasks/skip-existing-report-progress/spec.md"
+  ],
+  "artifacts_used": [
+    ".agent/tasks/skip-existing-report-progress/raw/build.txt",
+    ".agent/tasks/skip-existing-report-progress/raw/test-unit.txt",
+    ".agent/tasks/skip-existing-report-progress/raw/test-integration.txt",
+    ".agent/tasks/skip-existing-report-progress/raw/lint.txt"
+  ]
+}

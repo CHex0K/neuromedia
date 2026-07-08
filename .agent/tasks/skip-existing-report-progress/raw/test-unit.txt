@@ -1,0 +1,3 @@
+﻿existing report skip branch before AVI conversion and TRIBE cache ok
+skipped reports feed processed_reports and batch zip ok
+progress finally remains progress(file_index / total_inputs, desc=f"{file_index}/{total_inputs} videos processed")

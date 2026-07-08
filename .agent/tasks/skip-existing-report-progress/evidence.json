@@ -1,0 +1,78 @@
+{
+  "task_id": "skip-existing-report-progress",
+  "overall_status": "PASS",
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "text": "When a non-empty per-video marketing_report_bundle.zip already exists at the currently generated report path, that video skips TRIBE execution, surface decoding, and report rebuilding.",
+      "status": "PASS",
+      "proof": [
+        "run_surface_decoder_colab.ipynb checks candidate_report_zip.is_file() and candidate_report_zip.stat().st_size > 0 before AVI conversion and TRIBE cache work.",
+        "raw/test-integration.txt proves the skip branch precedes AVI conversion, TRIBE, decoder, and report stages."
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC2",
+      "text": "A skipped existing report is treated as processed: it is appended to processed_reports, exposed as final_report_file, and included in the final batch ZIP.",
+      "status": "PASS",
+      "proof": [
+        "The skip branch appends (input_path, report_zip) to processed_reports and sets final_report_file.",
+        "raw/test-unit.txt proves processed_reports still feeds the final batch ZIP archive loop."
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC3",
+      "text": "Progress accounting still advances by one input for skipped videos through the existing per-video finally progress update.",
+      "status": "PASS",
+      "proof": [
+        "raw/test-integration.txt proves the skip branch continues into the existing finally block with progress(file_index / total_inputs, ...)."
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC4",
+      "text": "Existing behavior is preserved when no report ZIP exists: TRIBE cache checks, decoder execution, report generation, failure handling, and temporary AVI cleanup remain on the current path.",
+      "status": "PASS",
+      "proof": [
+        "The inserted condition only handles existing non-empty report ZIP files; otherwise execution falls through to current_stage = \"checking TRIBE cache\".",
+        "Diff is limited to the skip branch and task artifacts."
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC5",
+      "text": "Focused checks prove notebook syntax, skip branch placement before TRIBE cache work, processed-report bookkeeping, and diff hygiene.",
+      "status": "PASS",
+      "proof": [
+        "raw/build.txt records notebook code-cell compile passing.",
+        "raw/test-unit.txt records skip bookkeeping checks passing.",
+        "raw/test-integration.txt records skip branch ordering, before-AVI-conversion, and progress finally checks passing.",
+        "raw/lint.txt records git diff --check passing with only a line-ending warning."
+      ],
+      "gaps": []
+    }
+  ],
+  "changed_files": [
+    "run_surface_decoder_colab.ipynb",
+    ".agent/tasks/skip-existing-report-progress/spec.md",
+    ".agent/tasks/skip-existing-report-progress/evidence.md",
+    ".agent/tasks/skip-existing-report-progress/evidence.json",
+    ".agent/tasks/skip-existing-report-progress/verdict.json",
+    ".agent/tasks/skip-existing-report-progress/problems.md",
+    ".agent/tasks/skip-existing-report-progress/raw/build.txt",
+    ".agent/tasks/skip-existing-report-progress/raw/test-unit.txt",
+    ".agent/tasks/skip-existing-report-progress/raw/test-integration.txt",
+    ".agent/tasks/skip-existing-report-progress/raw/lint.txt"
+  ],
+  "commands_for_fresh_verifier": [
+    "Compile all Python code cells from run_surface_decoder_colab.ipynb.",
+    "Run the static skip behavior snippet recorded in raw/test-unit.txt.",
+    "Run the integration source-order snippet recorded in raw/test-integration.txt.",
+    "git diff --check -- run_surface_decoder_colab.ipynb .agent/tasks/skip-existing-report-progress/spec.md .agent/tasks/skip-existing-report-progress/evidence.md .agent/tasks/skip-existing-report-progress/evidence.json .agent/tasks/skip-existing-report-progress/verdict.json .agent/tasks/skip-existing-report-progress/problems.md"
+  ],
+  "known_gaps": [
+    "Existing reports are not validated beyond being non-empty ZIP files at the expected path."
+  ]
+}

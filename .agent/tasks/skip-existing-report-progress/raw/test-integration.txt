@@ -1,0 +1,3 @@
+﻿skip branch precedes AVI conversion, TRIBE, decoder, and report stages
+skip branch records processed report and exposes existing ZIP
+skip branch continues into existing finally progress update

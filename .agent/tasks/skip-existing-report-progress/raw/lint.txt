@@ -1,0 +1,7 @@
+﻿git : warning: in the working copy of 'run_surface_decoder_colab.ipynb', LF will be replaced by CRLF the next time Git 
+touches it
+At line:2 char:8
++ $out = git diff --check -- run_surface_decoder_colab.ipynb .agent\tas ...
++        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (warning: in the... Git touches it:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
