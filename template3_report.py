@@ -147,18 +147,33 @@ def _segment_rows(decoded_terms_csv, segments_tsv, words_tsv):
             durations[ti] = float(row[dur_col]) if dur_col and pd.notna(row[dur_col]) else None
 
     words = None
+    words_have_interval = False
     if words_tsv and Path(words_tsv).is_file():
         wdf = pd.read_csv(words_tsv, sep="\t", encoding="utf-8")
         ws_col = _find_column(wdf, ["start", "word_start", "begin"])
         wt_col = _scene_description_text_column(wdf)
+        we_col = _find_column(wdf, ["end", "word_end", "stop"])
+        wd_col = _find_column(wdf, ["duration"])
         if ws_col and wt_col:
             words = wdf[[ws_col, wt_col]].rename(columns={ws_col: "start", wt_col: "text"})
+            words["start"] = pd.to_numeric(words["start"], errors="coerce")
+            if we_col:
+                words["end"] = pd.to_numeric(wdf[we_col], errors="coerce")
+                words_have_interval = True
+            elif wd_col:
+                duration_values = pd.to_numeric(wdf[wd_col], errors="coerce")
+                words["end"] = words["start"] + duration_values.fillna(0.0)
+                words_have_interval = True
 
     def scene_desc(offset, duration):
         if words is None or offset is None:
             return ""
-        end = offset + (duration or 0.0)
-        sel = words[(words["start"] >= offset) & (words["start"] < max(end, offset + 0.001))]
+        end = offset + (duration if duration is not None and duration > 0 else 1.0)
+        if words_have_interval:
+            row_end = words["end"].fillna(words["start"])
+            sel = words[(words["start"] <= end) & (row_end >= offset)]
+        else:
+            sel = words[(words["start"] >= offset) & (words["start"] < max(end, offset + 0.001))]
         return " ".join(str(t) for t in sel["text"].tolist()).strip()
 
     rows = []

@@ -1,0 +1,78 @@
+{
+  "task_id": "xlsx-overlap-scene-transcript",
+  "overall_status": "PASS",
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "text": "Template_3 XLSX scene_description includes transcript rows whose interval overlaps the segment window, matching HTML.",
+      "status": "PASS",
+      "proof": [
+        "_segment_rows() now uses interval overlap when a transcript end or duration column exists.",
+        "raw/test-unit.txt proves a 0.8-1.2 transcript row appears in both 0-1 and 1-2 segment rows.",
+        "raw/test-integration.txt proves the generated workbook has the same value in 1_RAW_CORRELATIONS!C4 and C5."
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC2",
+      "text": "Rows starting before a segment but ending inside or after the segment are included; boundary-crossing words may appear in adjacent XLSX rows like HTML.",
+      "status": "PASS",
+      "proof": [
+        "raw/test-integration.txt generated overlap workbook descriptions ['\\\\u0441\\\\u043c\\\\u043e\\\\u0442\\\\u0440\\\\u0438', '\\\\u0441\\\\u043c\\\\u043e\\\\u0442\\\\u0440\\\\u0438']."
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC3",
+      "text": "Existing display text-column selection is preserved, including Russian/source original_text behavior.",
+      "status": "PASS",
+      "proof": [
+        "Integration input used target_language=en with text=look and original_text=смотри; XLSX cells used original_text."
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC4",
+      "text": "If end or duration is unavailable, fallback to previous start-based behavior.",
+      "status": "PASS",
+      "proof": [
+        "raw/test-unit.txt and raw/test-integration.txt prove start-only transcripts are included only in the row containing their start timestamp."
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC5",
+      "text": "Focused checks prove syntax, overlap selection, generated workbook values, and diff hygiene.",
+      "status": "PASS",
+      "proof": [
+        "python -m py_compile template3_report.py passed.",
+        "Unit _segment_rows() overlap/fallback check passed.",
+        "Synthetic Template_3 workbook generation check passed.",
+        "git diff --check passed; it emitted only a line-ending warning from git."
+      ],
+      "gaps": []
+    }
+  ],
+  "changed_files": [
+    "template3_report.py",
+    ".agent/tasks/xlsx-overlap-scene-transcript/spec.md",
+    ".agent/tasks/xlsx-overlap-scene-transcript/evidence.md",
+    ".agent/tasks/xlsx-overlap-scene-transcript/evidence.json",
+    ".agent/tasks/xlsx-overlap-scene-transcript/verdict.json",
+    ".agent/tasks/xlsx-overlap-scene-transcript/problems.md",
+    ".agent/tasks/xlsx-overlap-scene-transcript/raw/build.txt",
+    ".agent/tasks/xlsx-overlap-scene-transcript/raw/test-unit.txt",
+    ".agent/tasks/xlsx-overlap-scene-transcript/raw/test-integration.txt",
+    ".agent/tasks/xlsx-overlap-scene-transcript/raw/lint.txt"
+  ],
+  "commands_for_fresh_verifier": [
+    "python -m py_compile template3_report.py",
+    "Run the unit _segment_rows() overlap/fallback snippet recorded in raw/test-unit.txt.",
+    "Run the synthetic Template_3 workbook generation snippet recorded in raw/test-integration.txt.",
+    "git diff --check -- template3_report.py .agent/tasks/xlsx-overlap-scene-transcript/spec.md .agent/tasks/xlsx-overlap-scene-transcript/evidence.md .agent/tasks/xlsx-overlap-scene-transcript/evidence.json .agent/tasks/xlsx-overlap-scene-transcript/verdict.json .agent/tasks/xlsx-overlap-scene-transcript/problems.md"
+  ],
+  "known_gaps": [
+    "Existing .xlsx files are not modified; reports must be regenerated.",
+    "The HTML report was not changed because the task was to make XLSX match existing HTML overlap behavior."
+  ]
+}

@@ -1,0 +1,13 @@
+Implementation:
+- `template3_report._segment_rows()` now reads optional transcript `end`,
+  `word_end`, `stop`, or `duration` columns.
+- When an interval is available, XLSX `scene_description` uses the same overlap
+  rule as HTML:
+  `word_start <= segment_end and word_end >= segment_start`.
+- When no interval is available, the previous start-based selection remains:
+  `word_start >= segment_start and word_start < segment_end`.
+
+Scope:
+- HTML code was not changed.
+- Transcript generation and TRIBE scoring were not changed.
+- Existing XLSX text-column selection (`original_text` preference) was preserved.

@@ -1,0 +1,43 @@
+{
+  "task_id": "xlsx-overlap-scene-transcript",
+  "overall_verdict": "PASS",
+  "criteria": [
+    {
+      "id": "AC1",
+      "status": "PASS",
+      "reason": "Current _segment_rows() includes transcript intervals that overlap a segment window, and workbook generation writes the overlapped text into both adjacent XLSX rows."
+    },
+    {
+      "id": "AC2",
+      "status": "PASS",
+      "reason": "A synthetic 0.8-1.2 transcript row appears in both 0-1 and 1-2 XLSX segment rows."
+    },
+    {
+      "id": "AC3",
+      "status": "PASS",
+      "reason": "The existing Russian/source display text selection is preserved; integration used original_text when target_language was not Russian."
+    },
+    {
+      "id": "AC4",
+      "status": "PASS",
+      "reason": "Start-only transcript rows still use the previous start timestamp containment behavior."
+    },
+    {
+      "id": "AC5",
+      "status": "PASS",
+      "reason": "Syntax, unit behavior, workbook generation, and diff hygiene checks passed."
+    }
+  ],
+  "commands_run": [
+    "python -m py_compile template3_report.py",
+    "Unit _segment_rows() overlap/fallback check via python stdin",
+    "Synthetic Template_3 workbook overlap/fallback generation via python stdin",
+    "git diff --check -- template3_report.py .agent/tasks/xlsx-overlap-scene-transcript/spec.md .agent/tasks/xlsx-overlap-scene-transcript/evidence.md .agent/tasks/xlsx-overlap-scene-transcript/evidence.json .agent/tasks/xlsx-overlap-scene-transcript/verdict.json .agent/tasks/xlsx-overlap-scene-transcript/problems.md"
+  ],
+  "artifacts_used": [
+    ".agent/tasks/xlsx-overlap-scene-transcript/raw/build.txt",
+    ".agent/tasks/xlsx-overlap-scene-transcript/raw/test-unit.txt",
+    ".agent/tasks/xlsx-overlap-scene-transcript/raw/test-integration.txt",
+    ".agent/tasks/xlsx-overlap-scene-transcript/raw/lint.txt"
+  ]
+}
