@@ -372,13 +372,28 @@ def load_report_transcript(tribe_dir: Path, input_media: Path | None) -> pd.Data
             continue
         try:
             if path.suffix.lower() == ".tsv":
-                return pd.read_csv(path, sep="\t")
+                return pd.read_csv(path, sep="\t", encoding="utf-8")
             if path.suffix.lower() == ".csv":
-                return pd.read_csv(path)
+                return pd.read_csv(path, encoding="utf-8")
             return pd.DataFrame({"text": [path.read_text(encoding="utf-8")]})
         except Exception as exc:
             LOGGER.warning("Could not read report transcript %s: %s", path, exc)
     return pd.DataFrame()
+
+
+def find_template3_words_tsv(tribe_dir: Path) -> Path | None:
+    """Return the best transcript word table for Template_3 scene descriptions."""
+
+    candidates = [
+        tribe_dir / "tribe_transcript.tsv",
+        tribe_dir / "hybrid_transcription" / "gigaam_openrouter_corrected_words.tsv",
+        tribe_dir / "hybrid_transcription" / "corrected_full_debug.tsv",
+        tribe_dir / "gigaam_openrouter_corrected_words.tsv",
+    ]
+    for path in candidates:
+        if path.is_file():
+            return path
+    return None
 
 
 def escape(value: Any) -> str:
@@ -1671,7 +1686,7 @@ def write_template3_report(
     decoded_terms_csv = surface_dir / "decoded_terms.csv"
     marketing_scores_csv = surface_dir / "marketing_scores.csv"
     segments_tsv = tribe_dir / "tribe_segments.tsv"
-    words_tsv = tribe_dir / "gigaam_openrouter_corrected_words.tsv"
+    words_tsv = find_template3_words_tsv(tribe_dir)
 
     if template_path.is_file() and decoded_terms_csv.is_file() and marketing_scores_csv.is_file():
         try:
@@ -1686,7 +1701,7 @@ def write_template3_report(
                 marketing_scores_csv=marketing_scores_csv,
                 output_xlsx=output_xlsx,
                 segments_tsv=segments_tsv if segments_tsv.is_file() else None,
-                words_tsv=words_tsv if words_tsv.is_file() else None,
+                words_tsv=words_tsv,
                 frame_png_provider=frame_provider,
             )
             return output_xlsx

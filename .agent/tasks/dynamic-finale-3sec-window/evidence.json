@@ -1,0 +1,120 @@
+{
+  "task_id": "dynamic-finale-3sec-window",
+  "overall_status": "PASS",
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "text": "The report generator identifies the current fixed `Finale` behavior in `4_WINDOW_AGGREGATES` as a template formula problem.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "artifact",
+          "path": ".agent/tasks/dynamic-finale-3sec-window/raw/build.txt",
+          "summary": "Template inspection found fixed `Finale` formulas like `D21:D23`."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC2",
+      "text": "Generated workbooks compute the `Finale` row from all segment/frame rows that overlap the last 3 seconds of the video, using `tribe_segments.tsv` timing (`start`/`offset`/`timeline` plus `duration`) when available.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/dynamic-finale-3sec-window/raw/test-integration.txt",
+          "command": "Synthetic workbook generation with `decoded_terms.csv` and `segments.tsv`.",
+          "exit_code": 0,
+          "summary": "Generated `C8` formula uses rows `D7:D8` for final `[7, 10)` seconds in a 10-second synthetic video."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC3",
+      "text": "The number of rows used by `Finale` changes with segment timing and is not hard-coded to rows 21-23, frames 18-20, or the last three rows when timing exists.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/dynamic-finale-3sec-window/raw/test-unit.txt",
+          "command": "Helper unit check for `_finale_window_rows`.",
+          "exit_code": 0,
+          "summary": "With timing, selected rows are `(7, 8)`, not fixed rows 21-23 or the fallback `(6, 8)`."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC4",
+      "text": "If segment timing is unavailable, generation falls back to the previous safe behavior of using up to the last three available rows.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/dynamic-finale-3sec-window/raw/test-integration.txt",
+          "command": "Synthetic workbook generation without `segments.tsv`.",
+          "exit_code": 0,
+          "summary": "Generated fallback `C8` formula uses `D6:D8` for five rows."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC5",
+      "text": "The workbook labels for the `Finale` row no longer claim a fixed `18-20с` window.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "artifact",
+          "path": ".agent/tasks/dynamic-finale-3sec-window/raw/test-integration.txt",
+          "summary": "Generated workbook label is `Finale last 3s`."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC6",
+      "text": "Focused checks prove the generated formulas and workbook JSON/code syntax are valid.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/dynamic-finale-3sec-window/raw/test-integration.txt",
+          "command": "python -m py_compile template3_report.py",
+          "exit_code": 0,
+          "summary": "Python syntax check passed."
+        },
+        {
+          "type": "command",
+          "path": ".agent/tasks/dynamic-finale-3sec-window/raw/lint.txt",
+          "command": "git diff --check -- template3_report.py .agent\\tasks\\dynamic-finale-3sec-window\\spec.md",
+          "exit_code": 0,
+          "summary": "No whitespace errors were reported."
+        }
+      ],
+      "gaps": []
+    }
+  ],
+  "changed_files": [
+    "template3_report.py",
+    ".agent/tasks/dynamic-finale-3sec-window/spec.md",
+    ".agent/tasks/dynamic-finale-3sec-window/evidence.md",
+    ".agent/tasks/dynamic-finale-3sec-window/evidence.json",
+    ".agent/tasks/dynamic-finale-3sec-window/raw/build.txt",
+    ".agent/tasks/dynamic-finale-3sec-window/raw/test-unit.txt",
+    ".agent/tasks/dynamic-finale-3sec-window/raw/test-integration.txt",
+    ".agent/tasks/dynamic-finale-3sec-window/raw/lint.txt"
+  ],
+  "commands_for_fresh_verifier": [
+    "python -m py_compile template3_report.py",
+    "rg -n \"FINALE_WINDOW_SECONDS|_finale_window_rows|_rewrite_finale_window|Finale last|последние 3\" template3_report.py",
+    "Generate a synthetic workbook with 5 two-second segments and inspect `4_WINDOW_AGGREGATES!C8`.",
+    "Generate a synthetic workbook without `segments.tsv` and inspect `4_WINDOW_AGGREGATES!C8`.",
+    "git diff --check -- template3_report.py .agent\\tasks\\dynamic-finale-3sec-window\\spec.md .agent\\tasks\\dynamic-finale-3sec-window\\evidence.md .agent\\tasks\\dynamic-finale-3sec-window\\evidence.json",
+    "python .agents\\skills\\repo-task-proof-loop\\scripts\\task_loop.py validate --task-id dynamic-finale-3sec-window"
+  ],
+  "known_gaps": [
+    "Excel formula recalculation itself was not evaluated in desktop Excel/LibreOffice; formulas were inspected structurally."
+  ]
+}

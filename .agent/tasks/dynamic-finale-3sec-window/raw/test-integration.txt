@@ -1,0 +1,29 @@
+Command:
+Synthetic workbook generation with `decoded_terms.csv` and `segments.tsv`.
+
+Input segments:
+- index 0: start 0.0, duration 2.0
+- index 1: start 2.0, duration 2.0
+- index 2: start 4.0, duration 2.0
+- index 3: start 6.0, duration 2.0
+- index 4: start 8.0, duration 2.0
+
+Exit code: 0
+
+Observed generated formulas:
+- `4_WINDOW_AGGREGATES!A8 = Finale last 3s`
+- `4_WINDOW_AGGREGATES!C8 = =AVERAGE('3_INDEX_SCORES'!D7:D8)`
+- `4_WINDOW_AGGREGATES!D8 = =AVERAGE('3_INDEX_SCORES'!E7:E8)`
+
+Fallback workbook without `segments.tsv`:
+- `4_WINDOW_AGGREGATES!A8 = Finale last 3s`
+- `4_WINDOW_AGGREGATES!C8 = =AVERAGE('3_INDEX_SCORES'!D6:D8)`
+
+Meaning:
+- With timing, the formula is based on actual final 3-second overlap, not fixed
+  rows 21-23 or the last three rows.
+- Without timing, the documented fallback uses the last three available rows.
+
+Additional checks:
+- `python -m py_compile template3_report.py` exit code 0.
+- `python .agents\skills\repo-task-proof-loop\scripts\task_loop.py validate --task-id dynamic-finale-3sec-window` exit code 0.

@@ -1,0 +1,30 @@
+Task type: Excel report bug fix.
+
+Production file changed:
+- `template3_report.py`
+
+Problem confirmed:
+- `Template_3_with_frames.xlsx` row `4_WINDOW_AGGREGATES!8` contains fixed
+  finale formulas such as `=AVERAGE('3_INDEX_SCORES'!D21:D23)`.
+- For generated reports with fewer than 20 segment rows those referenced rows
+  can be empty, producing `#DIV/0!`.
+- For generated reports with different segment durations, the fixed row range
+  does not mean "last 3 seconds of the video".
+
+Patch summary:
+- Added `FINALE_WINDOW_SECONDS = 3.0`.
+- Added `_finale_window_rows(rows)` to compute Excel row bounds for all segment
+  intervals overlapping the final 3 seconds `[video_end - 3, video_end)`.
+- Segment interval start comes from `offset`, populated from `tribe_segments.tsv`
+  `offset`/`start`/`timeline`; duration comes from `duration`.
+- If duration is missing, the next segment start is used; if that is unavailable,
+  the segment is treated as 1 second.
+- If all timing is unavailable, fallback is up to the last three available rows.
+- Added `_rewrite_finale_window(ws_agg, rows)` to rewrite the generated workbook's
+  `4_WINDOW_AGGREGATES` Finale row formulas and labels.
+
+Relevant current code:
+- `FINALE_WINDOW_SECONDS = 3.0`
+- `_finale_window_rows(rows: list[dict]) -> tuple[int, int]`
+- `_rewrite_finale_window(ws, rows: list[dict])`
+- `_rewrite_finale_window(ws_agg, rows)` is called during workbook generation.

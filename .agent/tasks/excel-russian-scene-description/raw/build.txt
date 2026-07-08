@@ -1,0 +1,13 @@
+Implementation:
+- Added Template_3-only text-column selection in `template3_report.py`.
+- `scene_description` now uses `text` when the transcript artifact is already
+  targeted to Russian (`target_language=ru`).
+- Otherwise it prefers `original_text` / source text columns for Excel display.
+- If no original/source text exists, it falls back to the existing selected
+  transcript text (`text`, `word`, `token`, `corrected`, `corrected_text`).
+
+Scope check:
+- No transcription files are rewritten.
+- No TRIBE scoring inputs are changed.
+- No HTML report transcript selection was changed.
+- `marketing_report.py` was not changed for this task.

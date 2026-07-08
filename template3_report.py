@@ -38,6 +38,12 @@ TEMPLATE_LAST_FRAME_ROW = 23  # skeleton has F01..F20 in rows 4..23
 FRAME_COL = 4               # column D = frame_image
 FIRST_TERM_COL = 5          # raw-correlation term columns start at E
 MARKUP_FLAG_COLS = range(5, 11)  # HOOK/BRAND/PRODUCT/OFFER/CTA/LOGO
+FINALE_WINDOW_SECONDS = 3.0
+FINALE_AGGREGATE_ROW = 8
+FIRST_AGGREGATE_VALUE_COL = 3  # column C on 4_WINDOW_AGGREGATES
+SCENE_SELECTED_TEXT_COLUMNS = ["text", "word", "token", "corrected", "corrected_text"]
+SCENE_ORIGINAL_TEXT_COLUMNS = ["original_text", "source_text", "raw_text"]
+RUSSIAN_LANGUAGE_VALUES = {"ru", "rus", "russian", "русский"}
 
 FramePngProvider = Callable[[Optional[float], Optional[float]], Optional[bytes]]
 
@@ -73,6 +79,36 @@ def _first_populated_column(frame: pd.DataFrame, candidates: list[str]) -> Optio
     return None
 
 
+def _has_text_values(frame: pd.DataFrame, column: str) -> bool:
+    values = frame[column].dropna().astype(str).str.strip()
+    return bool(values.ne("").any())
+
+
+def _target_language_is_russian(frame: pd.DataFrame) -> bool:
+    column = _find_column(frame, ["target_language"])
+    if column is None:
+        return False
+    values = {
+        str(value).strip().lower().replace("_", "-")
+        for value in frame[column].dropna().unique()
+    }
+    return bool(values & RUSSIAN_LANGUAGE_VALUES)
+
+
+def _scene_description_text_column(frame: pd.DataFrame) -> Optional[str]:
+    """Pick display text for Excel without changing TRIBE scoring text."""
+
+    selected_text = _first_populated_column(frame, SCENE_SELECTED_TEXT_COLUMNS)
+    original_text = _first_populated_column(frame, SCENE_ORIGINAL_TEXT_COLUMNS)
+    if _target_language_is_russian(frame) and selected_text and _has_text_values(frame, selected_text):
+        return selected_text
+    if original_text and _has_text_values(frame, original_text):
+        return original_text
+    if selected_text and _has_text_values(frame, selected_text):
+        return selected_text
+    return original_text or selected_text
+
+
 def _read_header_terms(ws) -> list[tuple[int, str]]:
     """Return (column_index, normalized_term) for the term columns of sheet 1."""
 
@@ -87,7 +123,7 @@ def _read_header_terms(ws) -> list[tuple[int, str]]:
 def _segment_rows(decoded_terms_csv, segments_tsv, words_tsv):
     """Assemble per-segment (frame) structures from the pipeline artifacts."""
 
-    terms = pd.read_csv(decoded_terms_csv)
+    terms = pd.read_csv(decoded_terms_csv, encoding="utf-8")
     terms["_feat"] = terms["feature"].map(_norm_term)
     r_by_ti_feat = (
         terms.drop_duplicates(subset=["time_index", "_feat"])
@@ -99,7 +135,7 @@ def _segment_rows(decoded_terms_csv, segments_tsv, words_tsv):
     offsets: dict[int, Optional[float]] = {}
     durations: dict[int, Optional[float]] = {}
     if segments_tsv and Path(segments_tsv).is_file():
-        seg = pd.read_csv(segments_tsv, sep="\t")
+        seg = pd.read_csv(segments_tsv, sep="\t", encoding="utf-8")
         off_col = _first_populated_column(seg, ["offset", "start", "timeline"])
         dur_col = _first_populated_column(seg, ["duration"])
         idx_col = _find_column(seg, ["index"])
@@ -110,9 +146,9 @@ def _segment_rows(decoded_terms_csv, segments_tsv, words_tsv):
 
     words = None
     if words_tsv and Path(words_tsv).is_file():
-        wdf = pd.read_csv(words_tsv, sep="\t")
+        wdf = pd.read_csv(words_tsv, sep="\t", encoding="utf-8")
         ws_col = _find_column(wdf, ["start", "word_start", "begin"])
-        wt_col = _find_column(wdf, ["text", "word", "token", "corrected", "corrected_text"])
+        wt_col = _scene_description_text_column(wdf)
         if ws_col and wt_col:
             words = wdf[[ws_col, wt_col]].rename(columns={ws_col: "start", wt_col: "text"})
 
@@ -210,6 +246,90 @@ def _widen_bottom_anchor(ws, new_last_row: int) -> None:
                 cell.value = cell.value.replace("$" + old, "$" + new).replace(old + ")", new + ")")
 
 
+def _positive_float(value: object) -> Optional[float]:
+    try:
+        result = float(value)
+    except (TypeError, ValueError):
+        return None
+    return result if result > 0 else None
+
+
+def _numeric_float(value: object) -> Optional[float]:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _finale_window_rows(rows: list[dict]) -> tuple[int, int]:
+    """Return Excel row bounds for segments overlapping the final 3 seconds."""
+
+    if not rows:
+        return DATA_START_ROW, DATA_START_ROW
+
+    fallback_start = DATA_START_ROW + max(len(rows) - 3, 0)
+    fallback_end = DATA_START_ROW + len(rows) - 1
+
+    starts = [_numeric_float(row.get("offset")) for row in rows]
+    if not any(start is not None for start in starts):
+        return fallback_start, fallback_end
+
+    timed: list[tuple[int, float, float]] = []
+    for index, row in enumerate(rows):
+        start = starts[index]
+        if start is None:
+            continue
+
+        duration = _positive_float(row.get("duration"))
+        next_start = next(
+            (
+                candidate
+                for candidate in starts[index + 1 :]
+                if candidate is not None and candidate > start
+            ),
+            None,
+        )
+        if duration is not None:
+            end = start + duration
+        elif next_start is not None:
+            end = next_start
+        else:
+            end = start + 1.0
+        if end <= start:
+            end = start + 1.0
+        timed.append((DATA_START_ROW + index, start, end))
+
+    if not timed:
+        return fallback_start, fallback_end
+
+    video_end = max(end for _, _, end in timed)
+    window_start = max(0.0, video_end - FINALE_WINDOW_SECONDS)
+    selected = [
+        excel_row
+        for excel_row, start, end in timed
+        if end > window_start and start < video_end
+    ]
+    if not selected:
+        selected = [timed[-1][0]]
+    return min(selected), max(selected)
+
+
+def _rewrite_finale_window(ws, rows: list[dict]) -> None:
+    """Rewrite Finale aggregate formulas to the actual final 3-second window."""
+
+    from openpyxl.utils import get_column_letter
+
+    first_row, last_row = _finale_window_rows(rows)
+    seconds_label = int(FINALE_WINDOW_SECONDS)
+    ws.cell(FINALE_AGGREGATE_ROW, 1).value = f"Finale last {seconds_label}s"
+    ws.cell(FINALE_AGGREGATE_ROW, 2).value = "Среднее по кадрам за последние 3 секунды"
+    for col in range(FIRST_AGGREGATE_VALUE_COL, ws.max_column + 1):
+        source_col = get_column_letter(col + 1)  # aggregate C maps to index-score D
+        ws.cell(FINALE_AGGREGATE_ROW, col).value = (
+            f"=AVERAGE('3_INDEX_SCORES'!{source_col}{first_row}:{source_col}{last_row})"
+        )
+
+
 def build_template3_workbook(
     *,
     template_path: Path,
@@ -232,6 +352,7 @@ def build_template3_workbook(
     ws_raw = wb["1_RAW_CORRELATIONS"]
     ws_mark = wb["2_FRAME_MARKUP"]
     ws_idx = wb["3_INDEX_SCORES"]
+    ws_agg = wb["4_WINDOW_AGGREGATES"]
 
     term_cols = _read_header_terms(ws_raw)
 
@@ -271,7 +392,9 @@ def build_template3_workbook(
         for ws in (ws_mark, ws_idx):
             _extend_formula_rows(ws, TEMPLATE_LAST_FRAME_ROW, TEMPLATE_LAST_FRAME_ROW + 1, last_data_row)
         _widen_bottom_anchor(ws_idx, last_data_row)
-        _widen_bottom_anchor(wb["4_WINDOW_AGGREGATES"], last_data_row)
+        _widen_bottom_anchor(ws_agg, last_data_row)
+
+    _rewrite_finale_window(ws_agg, rows)
 
     # force Excel/LibreOffice to recompute every formula when the file is opened
     try:

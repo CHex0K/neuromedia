@@ -1,0 +1,33 @@
+Command:
+Synthetic Template_3 workbook generation through
+`marketing_report.write_template3_report()` with:
+- `surface/decoded_terms.csv`
+- `surface/marketing_scores.csv`
+- `tribe/tribe_segments.tsv`
+- `tribe/tribe_transcript.tsv` containing Russian UTF-8 words
+
+Exit code: 0
+
+Observed generated workbook values:
+- `1_RAW_CORRELATIONS!C4 = Привет мир`
+- `1_RAW_CORRELATIONS!C5 = это тест`
+- `1_RAW_CORRELATIONS!C6 = финал`
+- `2_FRAME_MARKUP!C4 = ='1_RAW_CORRELATIONS'!C4`
+
+Raw command output used Unicode escapes to avoid PowerShell console ambiguity:
+- `\u041f\u0440\u0438\u0432\u0435\u0442 \u043c\u0438\u0440`
+- `\u044d\u0442\u043e \u0442\u0435\u0441\u0442`
+- `\u0444\u0438\u043d\u0430\u043b`
+
+Fallback command:
+Synthetic Template_3 workbook generation without any transcript TSV.
+
+Fallback output:
+fallback blank scene_description ok
+
+Meaning:
+- When transcript words and segment timing exist, `scene_description` is populated
+  from Russian transcript snippets.
+- The formula sheet references those populated raw cells.
+- When no transcript file exists, workbook generation still succeeds and leaves the
+  descriptions blank.

@@ -1,0 +1,27 @@
+Command:
+@'
+from template3_report import _finale_window_rows
+rows = [
+    {'offset': 0.0, 'duration': 2.0},
+    {'offset': 2.0, 'duration': 2.0},
+    {'offset': 4.0, 'duration': 2.0},
+    {'offset': 6.0, 'duration': 2.0},
+    {'offset': 8.0, 'duration': 2.0},
+]
+print(_finale_window_rows(rows))
+assert _finale_window_rows(rows) == (7, 8)
+rows = [{'offset': None, 'duration': None} for _ in range(5)]
+print(_finale_window_rows(rows))
+assert _finale_window_rows(rows) == (6, 8)
+'@ | python -
+
+Exit code: 0
+
+Output:
+(7, 8)
+(6, 8)
+
+Meaning:
+- With 5 two-second segments, video end is 10 seconds and the final 3-second
+  window is `[7, 10)`. Rows 7-8 overlap that window.
+- Without timing, fallback remains the last three rows.

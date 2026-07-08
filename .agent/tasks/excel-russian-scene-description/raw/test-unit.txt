@@ -1,0 +1,36 @@
+Command:
+@'
+import pandas as pd
+from template3_report import _scene_description_text_column
+
+frame = pd.DataFrame({
+    'target_language': ['en'],
+    'text': ['Hello world'],
+    'original_text': ['\u041f\u0440\u0438\u0432\u0435\u0442 \u043c\u0438\u0440'],
+})
+assert _scene_description_text_column(frame) == 'original_text'
+
+frame = pd.DataFrame({
+    'target_language': ['ru'],
+    'text': ['\u041f\u0440\u0438\u0432\u0435\u0442 \u043c\u0438\u0440 corrected'],
+    'original_text': ['\u041f\u0440\u0438\u0432\u0435\u0442 \u043c\u0438\u0440 raw'],
+})
+assert _scene_description_text_column(frame) == 'text'
+
+frame = pd.DataFrame({'target_language': ['en'], 'text': ['Hello world']})
+assert _scene_description_text_column(frame) == 'text'
+
+frame = pd.DataFrame({'target_language': ['en'], 'text': ['Hello world'], 'original_text': ['']})
+assert _scene_description_text_column(frame) == 'text'
+print('scene text column selection ok')
+'@ | python -
+
+Exit code: 0
+
+Output:
+scene text column selection ok
+
+Meaning:
+- English corrected `text` plus Russian `original_text` selects `original_text`.
+- Russian-target corrected `text` selects `text`.
+- Missing or blank original text falls back to selected `text`.

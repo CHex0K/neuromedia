@@ -1,0 +1,123 @@
+{
+  "task_id": "scene-description-transcript-text",
+  "overall_status": "PASS",
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "text": "The root cause is documented: generated Template_3 workbooks show blank/0 scene_description because write_template3_report() only looks for the legacy root corrected words file.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "artifact",
+          "path": ".agent/tasks/scene-description-transcript-text/raw/build.txt",
+          "summary": "Documented the wrong Template_3 transcript path and blank raw cells that appear as 0 through formula references."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC2",
+      "text": "The Template_3 report path discovers transcript word artifacts in the locations produced by the current TRIBE/hybrid pipeline, with a deterministic preference order.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/scene-description-transcript-text/raw/test-unit.txt",
+          "command": "Transcript artifact selection check via python stdin.",
+          "exit_code": 0,
+          "summary": "Selection prefers tribe_transcript.tsv, supports hybrid corrected words, supports legacy root file, and returns None when missing."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC3",
+      "text": "scene_description cells in generated workbooks contain transcript snippets aligned to segment timing when transcript words and segment timing are available.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/scene-description-transcript-text/raw/test-integration.txt",
+          "command": "Synthetic Template_3 workbook generation with segment timing and transcript words.",
+          "exit_code": 0,
+          "summary": "Generated raw scene_description cells contain transcript snippets aligned to segment timing."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC4",
+      "text": "Russian transcript text is preserved as UTF-8 in generated workbooks when the selected transcript artifact contains Russian text.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/scene-description-transcript-text/raw/test-integration.txt",
+          "command": "Synthetic workbook generation with Russian UTF-8 transcript words.",
+          "exit_code": 0,
+          "summary": "Generated workbook preserved Russian strings such as Привет мир, это тест, финал."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC5",
+      "text": "Existing fallback behavior remains safe: if no transcript artifact is available, report generation still succeeds and leaves scene_description blank rather than failing.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/scene-description-transcript-text/raw/test-integration.txt",
+          "command": "Synthetic fallback workbook generation without transcript TSV.",
+          "exit_code": 0,
+          "summary": "Workbook generation succeeded and left scene_description blank."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC6",
+      "text": "Focused checks prove Python syntax, transcript artifact selection, workbook generation, and diff hygiene.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/scene-description-transcript-text/raw/lint.txt",
+          "command": "python -m py_compile marketing_report.py template3_report.py",
+          "exit_code": 0,
+          "summary": "Python syntax check passed."
+        },
+        {
+          "type": "command",
+          "path": ".agent/tasks/scene-description-transcript-text/raw/lint.txt",
+          "command": "git diff --check -- marketing_report.py template3_report.py .agent\\tasks\\scene-description-transcript-text\\spec.md",
+          "exit_code": 0,
+          "summary": "No whitespace errors were reported."
+        }
+      ],
+      "gaps": []
+    }
+  ],
+  "changed_files": [
+    "marketing_report.py",
+    "template3_report.py",
+    ".agent/tasks/scene-description-transcript-text/spec.md",
+    ".agent/tasks/scene-description-transcript-text/evidence.md",
+    ".agent/tasks/scene-description-transcript-text/evidence.json",
+    ".agent/tasks/scene-description-transcript-text/raw/build.txt",
+    ".agent/tasks/scene-description-transcript-text/raw/test-unit.txt",
+    ".agent/tasks/scene-description-transcript-text/raw/test-integration.txt",
+    ".agent/tasks/scene-description-transcript-text/raw/lint.txt"
+  ],
+  "commands_for_fresh_verifier": [
+    "python -m py_compile marketing_report.py template3_report.py",
+    "Run transcript artifact selection check for find_template3_words_tsv.",
+    "Generate a synthetic Template_3 workbook with Russian tribe_transcript.tsv and inspect 1_RAW_CORRELATIONS!C4:C6.",
+    "Generate a synthetic Template_3 workbook without transcript words and inspect 1_RAW_CORRELATIONS!C4.",
+    "git diff --check -- marketing_report.py template3_report.py .agent\\tasks\\scene-description-transcript-text\\spec.md .agent\\tasks\\scene-description-transcript-text\\evidence.md .agent\\tasks\\scene-description-transcript-text\\evidence.json"
+  ],
+  "known_gaps": [
+    "Excel formula recalculation itself was not evaluated in desktop Excel/LibreOffice; generated workbook cell contents and formulas were inspected structurally.",
+    "Russian output depends on the transcript artifact containing Russian text. If the run is configured with target language en, the transcript artifact will contain English corrected text."
+  ]
+}

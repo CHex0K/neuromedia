@@ -1,0 +1,129 @@
+{
+  "task_id": "excel-russian-scene-description",
+  "overall_status": "PASS",
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "text": "Template_3 Excel scene_description uses Russian/original transcript text when the selected transcript artifact has an original_text column and the run's corrected text is not Russian.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/excel-russian-scene-description/raw/test-integration.txt",
+          "command": "Synthetic workbook generation with target_language=en, English text, and Russian original_text.",
+          "exit_code": 0,
+          "summary": "Generated Excel raw scene_description cells used Russian original_text."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC2",
+      "text": "When the selected transcript artifact is already targeted to Russian (target_language=ru) and has populated text, Template_3 may use the corrected Russian text column.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/excel-russian-scene-description/raw/test-unit.txt",
+          "command": "Text-column selection unit check.",
+          "exit_code": 0,
+          "summary": "target_language=ru selected the corrected text column."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC3",
+      "text": "The change is scoped to Template_3 Excel display; TRIBE word events, scoring inputs, HTML transcript display, cache metadata, and transcript files are not changed.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "artifact",
+          "path": ".agent/tasks/excel-russian-scene-description/raw/build.txt",
+          "summary": "Implementation scope is limited to template3_report.py scene_description text-column selection."
+        },
+        {
+          "type": "command",
+          "path": ".agent/tasks/excel-russian-scene-description/raw/test-integration.txt",
+          "command": "Transcript file check after workbook generation.",
+          "exit_code": 0,
+          "summary": "The input transcript still contained English selected text after report generation."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC4",
+      "text": "If no Russian/original display column is available, Template_3 falls back to the existing selected transcript text column.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/excel-russian-scene-description/raw/test-integration.txt",
+          "command": "Synthetic fallback workbook generation with only selected text.",
+          "exit_code": 0,
+          "summary": "Generated Excel scene_description used selected text when original_text was missing."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC5",
+      "text": "Generated Excel workbooks preserve Russian UTF-8 text in 1_RAW_CORRELATIONS!C* and 2_FRAME_MARKUP continues to reference those raw cells.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/excel-russian-scene-description/raw/test-integration.txt",
+          "command": "Synthetic workbook cell inspection.",
+          "exit_code": 0,
+          "summary": "1_RAW_CORRELATIONS!C4:C5 contained Russian snippets, and 2_FRAME_MARKUP!C4 referenced the raw cell."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC6",
+      "text": "Focused checks prove syntax, text-column selection, workbook generation, and diff hygiene.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/excel-russian-scene-description/raw/lint.txt",
+          "command": "python -m py_compile template3_report.py marketing_report.py",
+          "exit_code": 0,
+          "summary": "Python syntax check passed."
+        },
+        {
+          "type": "command",
+          "path": ".agent/tasks/excel-russian-scene-description/raw/lint.txt",
+          "command": "git diff --check -- template3_report.py .agent\\tasks\\excel-russian-scene-description\\spec.md",
+          "exit_code": 0,
+          "summary": "No whitespace errors were reported."
+        }
+      ],
+      "gaps": []
+    }
+  ],
+  "changed_files": [
+    "template3_report.py",
+    ".agent/tasks/excel-russian-scene-description/spec.md",
+    ".agent/tasks/excel-russian-scene-description/evidence.md",
+    ".agent/tasks/excel-russian-scene-description/evidence.json",
+    ".agent/tasks/excel-russian-scene-description/raw/build.txt",
+    ".agent/tasks/excel-russian-scene-description/raw/test-unit.txt",
+    ".agent/tasks/excel-russian-scene-description/raw/test-integration.txt",
+    ".agent/tasks/excel-russian-scene-description/raw/lint.txt"
+  ],
+  "commands_for_fresh_verifier": [
+    "python -m py_compile template3_report.py marketing_report.py",
+    "Run text-column selection unit check for _scene_description_text_column.",
+    "Generate a Template_3 workbook with target_language=en, English text, Russian original_text, and inspect 1_RAW_CORRELATIONS!C*.",
+    "Generate a Template_3 workbook with only text and inspect fallback scene_description.",
+    "git diff --check -- template3_report.py .agent\\tasks\\excel-russian-scene-description\\spec.md .agent\\tasks\\excel-russian-scene-description\\evidence.md .agent\\tasks\\excel-russian-scene-description\\evidence.json"
+  ],
+  "known_gaps": [
+    "Excel formula recalculation itself was not evaluated in desktop Excel/LibreOffice; generated workbook cell contents and formulas were inspected structurally.",
+    "If the transcript artifact has no Russian/source/original text column, the report can only fall back to the selected transcript text."
+  ]
+}

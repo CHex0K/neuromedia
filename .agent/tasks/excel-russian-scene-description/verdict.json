@@ -1,0 +1,52 @@
+{
+  "task_id": "excel-russian-scene-description",
+  "overall_verdict": "PASS",
+  "criteria": [
+    {
+      "id": "AC1",
+      "status": "PASS",
+      "reason": "English selected text with Russian original_text generated Russian Excel scene descriptions."
+    },
+    {
+      "id": "AC2",
+      "status": "PASS",
+      "reason": "Russian-target selected text remains preferred when target_language is ru."
+    },
+    {
+      "id": "AC3",
+      "status": "PASS",
+      "reason": "The change is limited to Template_3 display-column selection and does not rewrite transcript artifacts or scoring text."
+    },
+    {
+      "id": "AC4",
+      "status": "PASS",
+      "reason": "Missing original/source text falls back to the selected text column."
+    },
+    {
+      "id": "AC5",
+      "status": "PASS",
+      "reason": "Generated workbook preserves Russian UTF-8 text in raw scene_description cells and markup formulas keep referencing those cells."
+    },
+    {
+      "id": "AC6",
+      "status": "PASS",
+      "reason": "Syntax, unit, integration, fallback, and diff hygiene checks passed."
+    }
+  ],
+  "commands_run": [
+    "python -m py_compile template3_report.py marketing_report.py",
+    "Unit text-column selection check via python stdin",
+    "Synthetic Template_3 workbook generation with English text and Russian original_text via python stdin",
+    "Synthetic fallback workbook generation with only text via python stdin",
+    "git diff --check -- template3_report.py .agent\\tasks\\excel-russian-scene-description\\spec.md"
+  ],
+  "artifacts_used": [
+    ".agent/tasks/excel-russian-scene-description/spec.md",
+    ".agent/tasks/excel-russian-scene-description/evidence.md",
+    ".agent/tasks/excel-russian-scene-description/evidence.json",
+    ".agent/tasks/excel-russian-scene-description/raw/build.txt",
+    ".agent/tasks/excel-russian-scene-description/raw/test-unit.txt",
+    ".agent/tasks/excel-russian-scene-description/raw/test-integration.txt",
+    ".agent/tasks/excel-russian-scene-description/raw/lint.txt"
+  ]
+}

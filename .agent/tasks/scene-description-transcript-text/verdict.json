@@ -1,0 +1,52 @@
+{
+  "task_id": "scene-description-transcript-text",
+  "overall_verdict": "PASS",
+  "criteria": [
+    {
+      "id": "AC1",
+      "status": "PASS",
+      "reason": "The wrong Template_3 transcript path was identified and documented with local workbook evidence."
+    },
+    {
+      "id": "AC2",
+      "status": "PASS",
+      "reason": "The report now selects current and legacy transcript artifacts in deterministic order."
+    },
+    {
+      "id": "AC3",
+      "status": "PASS",
+      "reason": "Synthetic workbook generation populated scene_description from transcript snippets aligned to segment timing."
+    },
+    {
+      "id": "AC4",
+      "status": "PASS",
+      "reason": "Russian UTF-8 transcript text was preserved in generated workbook cells."
+    },
+    {
+      "id": "AC5",
+      "status": "PASS",
+      "reason": "Generation without transcript words still succeeds with blank scene_description."
+    },
+    {
+      "id": "AC6",
+      "status": "PASS",
+      "reason": "Syntax, unit, integration, fallback, and diff hygiene checks passed."
+    }
+  ],
+  "commands_run": [
+    "python -m py_compile marketing_report.py template3_report.py",
+    "Unit transcript selection check via python stdin",
+    "Synthetic Template_3 workbook generation with Russian transcript words via python stdin",
+    "Synthetic fallback workbook generation without transcript words via python stdin",
+    "git diff --check -- marketing_report.py template3_report.py .agent\\tasks\\scene-description-transcript-text\\spec.md"
+  ],
+  "artifacts_used": [
+    ".agent/tasks/scene-description-transcript-text/spec.md",
+    ".agent/tasks/scene-description-transcript-text/evidence.md",
+    ".agent/tasks/scene-description-transcript-text/evidence.json",
+    ".agent/tasks/scene-description-transcript-text/raw/build.txt",
+    ".agent/tasks/scene-description-transcript-text/raw/test-unit.txt",
+    ".agent/tasks/scene-description-transcript-text/raw/test-integration.txt",
+    ".agent/tasks/scene-description-transcript-text/raw/lint.txt"
+  ]
+}

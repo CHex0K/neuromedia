@@ -1,0 +1,15 @@
+Commands:
+- `python -m py_compile template3_report.py marketing_report.py`
+- `git diff --check -- template3_report.py .agent\tasks\excel-russian-scene-description\spec.md`
+
+Exit codes:
+- py_compile: 0
+- git diff --check: 0
+
+Output:
+- `git diff --check` reported only Git's line-ending normalization warning for
+  `template3_report.py`.
+
+Meaning:
+- Python syntax is valid.
+- No whitespace errors were reported.

@@ -1,0 +1,52 @@
+{
+  "task_id": "dynamic-finale-3sec-window",
+  "overall_verdict": "PASS",
+  "criteria": [
+    {
+      "id": "AC1",
+      "status": "PASS",
+      "reason": "The template problem was identified as fixed Finale formulas such as D21:D23 in 4_WINDOW_AGGREGATES."
+    },
+    {
+      "id": "AC2",
+      "status": "PASS",
+      "reason": "Generated workbooks rewrite Finale formulas from segment timing; a 10-second synthetic video selected rows D7:D8 for the final 3-second overlap."
+    },
+    {
+      "id": "AC3",
+      "status": "PASS",
+      "reason": "The selected row range changes from timing and is not hard-coded to rows 21-23 or the last three rows when timing exists."
+    },
+    {
+      "id": "AC4",
+      "status": "PASS",
+      "reason": "Without usable timing, generation falls back to the last three available rows."
+    },
+    {
+      "id": "AC5",
+      "status": "PASS",
+      "reason": "Generated Finale row label is rewritten to Finale last 3s instead of a fixed 18-20s label."
+    },
+    {
+      "id": "AC6",
+      "status": "PASS",
+      "reason": "Python syntax, helper checks, synthetic workbook formula checks, and diff whitespace checks passed."
+    }
+  ],
+  "commands_run": [
+    "python -m py_compile template3_report.py",
+    "Unit helper check for _finale_window_rows via python stdin",
+    "Synthetic workbook generation with timing and fallback cases via python stdin",
+    "rg -n \"FINALE_WINDOW_SECONDS|_finale_window_rows|_rewrite_finale_window|Finale last|последние 3\" template3_report.py",
+    "git diff --check -- template3_report.py .agent\\tasks\\dynamic-finale-3sec-window\\spec.md .agent\\tasks\\dynamic-finale-3sec-window\\evidence.md .agent\\tasks\\dynamic-finale-3sec-window\\evidence.json"
+  ],
+  "artifacts_used": [
+    ".agent/tasks/dynamic-finale-3sec-window/spec.md",
+    ".agent/tasks/dynamic-finale-3sec-window/evidence.md",
+    ".agent/tasks/dynamic-finale-3sec-window/evidence.json",
+    ".agent/tasks/dynamic-finale-3sec-window/raw/build.txt",
+    ".agent/tasks/dynamic-finale-3sec-window/raw/test-unit.txt",
+    ".agent/tasks/dynamic-finale-3sec-window/raw/test-integration.txt",
+    ".agent/tasks/dynamic-finale-3sec-window/raw/lint.txt"
+  ]
+}

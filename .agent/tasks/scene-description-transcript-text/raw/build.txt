@@ -1,0 +1,22 @@
+Root cause inspection:
+- `marketing_report.write_template3_report()` used only:
+  `tribe_dir / "gigaam_openrouter_corrected_words.tsv"`.
+- The hybrid pipeline writes the canonical transcript to:
+  `tribe_dir / "tribe_transcript.tsv"`.
+- It writes the detailed corrected words table to:
+  `tribe_dir / "hybrid_transcription" / "gigaam_openrouter_corrected_words.tsv"`.
+- Therefore Template_3 generation passed `words_tsv=None` for normal hybrid runs.
+
+Local workbook inspection:
+- `marketing_report.xlsx`, `1_RAW_CORRELATIONS!C4:C10` = blank/None.
+- `marketing_report.xlsx`, `2_FRAME_MARKUP!C4:C10` = formulas referencing the blank raw cells.
+- This explains why Excel displays `0` in the formula sheet.
+
+Code change:
+- Added `find_template3_words_tsv()` in `marketing_report.py`.
+- Template_3 generation now prefers:
+  1. `tribe_transcript.tsv`
+  2. `hybrid_transcription/gigaam_openrouter_corrected_words.tsv`
+  3. `hybrid_transcription/corrected_full_debug.tsv`
+  4. legacy root `gigaam_openrouter_corrected_words.tsv`
+- Added explicit UTF-8 encoding to transcript/report CSV/TSV reads touched by this path.

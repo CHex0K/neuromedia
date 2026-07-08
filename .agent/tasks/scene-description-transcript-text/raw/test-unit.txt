@@ -1,0 +1,38 @@
+Command:
+@'
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from marketing_report import find_template3_words_tsv
+
+with TemporaryDirectory() as tmp:
+    root = Path(tmp)
+    tribe = root / 'tribe'
+    hybrid = tribe / 'hybrid_transcription'
+    hybrid.mkdir(parents=True)
+    assert find_template3_words_tsv(tribe) is None
+
+    legacy = tribe / 'gigaam_openrouter_corrected_words.tsv'
+    legacy.write_text('text\tstart\nlegacy\t0\n', encoding='utf-8')
+    assert find_template3_words_tsv(tribe) == legacy
+
+    hybrid_words = hybrid / 'gigaam_openrouter_corrected_words.tsv'
+    hybrid_words.write_text('text\tstart\nhybrid\t0\n', encoding='utf-8')
+    assert find_template3_words_tsv(tribe) == hybrid_words
+
+    root_transcript = tribe / 'tribe_transcript.tsv'
+    root_transcript.write_text('text\tstart\nroot\t0\n', encoding='utf-8')
+    assert find_template3_words_tsv(tribe) == root_transcript
+
+print('template3 transcript selection ok')
+'@ | python -
+
+Exit code: 0
+
+Output:
+template3 transcript selection ok
+
+Meaning:
+- Missing transcript returns `None`.
+- Legacy path is still supported.
+- Hybrid corrected words path is supported.
+- Canonical root `tribe_transcript.tsv` has deterministic priority.

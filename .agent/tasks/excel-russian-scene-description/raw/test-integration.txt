@@ -1,0 +1,31 @@
+Command:
+Synthetic Template_3 workbook generation through `marketing_report.write_template3_report()`.
+
+Input transcript rows:
+- `target_language=en`
+- `text`: `Hello`, `world`, `Final`
+- `original_text`: `Привет`, `мир`, `Финал`
+- segment timing: `[0, 2)`, `[2, 4)`
+
+Exit code: 0
+
+Observed generated workbook:
+- `1_RAW_CORRELATIONS!C4 = Привет мир`
+- `1_RAW_CORRELATIONS!C5 = Финал`
+- `2_FRAME_MARKUP!C4 = ='1_RAW_CORRELATIONS'!C4`
+
+Transcript file check:
+- `tribe_transcript.tsv` still contained the English selected `text` values:
+  `Hello`, `world`, `Final`.
+
+Fallback command:
+Synthetic Template_3 workbook generation with only selected `text` and no
+`original_text` column.
+
+Fallback output:
+fallback selected text ok
+
+Meaning:
+- Excel display uses Russian/source transcript snippets when available.
+- The transcript artifact and selected model/scoring text are not modified.
+- When original/source text is unavailable, the previous fallback to `text` remains.
