@@ -1,0 +1,23 @@
+Command:
+Synthetic workbook generation using `Template_3_with_frames.xlsx`,
+`decoded_terms.csv`, `tribe_segments.tsv`, and a transcript word only in the
+middle segment.
+
+Exit code: 0
+
+Observed short workbook:
+- `1_RAW_CORRELATIONS!C4` is blank/None.
+- `1_RAW_CORRELATIONS!C5 = Паш, смотри!`
+- `1_RAW_CORRELATIONS!C6` is blank/None.
+- `2_FRAME_MARKUP!C4 = =IF('1_RAW_CORRELATIONS'!C4="","",'1_RAW_CORRELATIONS'!C4)`
+- `2_FRAME_MARKUP!C5 = =IF('1_RAW_CORRELATIONS'!C5="","",'1_RAW_CORRELATIONS'!C5)`
+- `2_FRAME_MARKUP!C6 = =IF('1_RAW_CORRELATIONS'!C6="","",'1_RAW_CORRELATIONS'!C6)`
+- `2_FRAME_MARKUP!C7` is cleared because it is outside the generated data rows.
+
+Observed extended workbook with 21 rows:
+- `2_FRAME_MARKUP!C24 = =IF('1_RAW_CORRELATIONS'!C24="","",'1_RAW_CORRELATIONS'!C24)`
+
+Meaning:
+- Blank transcript segments render through an explicit blank-safe formula.
+- Populated transcript segments continue to reference the raw transcript cell.
+- The formula rewrite works for fewer and more than the default 20 template rows.

@@ -1,0 +1,23 @@
+Command:
+@'
+import openpyxl
+from template3_report import _rewrite_markup_scene_formulas
+
+wb = openpyxl.Workbook()
+ws = wb.active
+_rewrite_markup_scene_formulas(ws, 6)
+assert ws['C4'].value == '=IF(\'1_RAW_CORRELATIONS\'!C4="","",\'1_RAW_CORRELATIONS\'!C4)'
+assert ws['C5'].value == '=IF(\'1_RAW_CORRELATIONS\'!C5="","",\'1_RAW_CORRELATIONS\'!C5)'
+assert ws['C6'].value == '=IF(\'1_RAW_CORRELATIONS\'!C6="","",\'1_RAW_CORRELATIONS\'!C6)'
+assert ws['C7'].value is None
+print('scene formula rewrite ok')
+'@ | python -
+
+Exit code: 0
+
+Output:
+scene formula rewrite ok
+
+Meaning:
+- Generated data rows get the blank-safe formula.
+- Rows beyond `last_data_row` are not touched.

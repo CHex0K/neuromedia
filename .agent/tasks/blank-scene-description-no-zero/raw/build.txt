@@ -1,0 +1,12 @@
+Implementation:
+- Added `SCENE_DESCRIPTION_COL = 3` in `template3_report.py`.
+- Added `_rewrite_markup_scene_formulas()` to rewrite generated
+  `2_FRAME_MARKUP!C*` formulas.
+- The generated formula is:
+  `=IF('1_RAW_CORRELATIONS'!C{row}="","",'1_RAW_CORRELATIONS'!C{row})`
+- The helper runs after Template_3 row fitting, so it covers the exact generated
+  data rows and leaves cleared non-data rows untouched.
+
+Scope:
+- Only Template_3 `2_FRAME_MARKUP` scene-description formulas are changed.
+- Raw transcript alignment, scoring, frames, and markup flags are unchanged.

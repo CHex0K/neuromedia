@@ -1,0 +1,114 @@
+{
+  "task_id": "remove-red-workbook-highlights",
+  "overall_status": "PASS",
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "text": "Generated Template_3 workbooks contain no cells with solid red fill/highlight.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/remove-red-workbook-highlights/raw/test-integration.txt",
+          "command": "Synthetic workbook generation and full style inspection.",
+          "exit_code": 0,
+          "summary": "Generated workbook red fill count was 0."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC2",
+      "text": "Non-red structural fills, such as blue/green header backgrounds, are preserved.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/remove-red-workbook-highlights/raw/test-unit.txt",
+          "command": "Synthetic red/non-red fill cleanup helper check.",
+          "exit_code": 0,
+          "summary": "Red fill was removed while green and blue fills were preserved."
+        },
+        {
+          "type": "command",
+          "path": ".agent/tasks/remove-red-workbook-highlights/raw/test-integration.txt",
+          "command": "Generated workbook header fill inspection.",
+          "exit_code": 0,
+          "summary": "Generated workbook preserved FFE2F0D9 and FFD9EAF7 header fills."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC3",
+      "text": "The source Template_3_with_frames.xlsx file is not edited; cleanup happens only during generated workbook creation.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/remove-red-workbook-highlights/raw/test-integration.txt",
+          "command": "Source template red-fill inspection.",
+          "exit_code": 0,
+          "summary": "Source template still had 5 red fills while generated workbook had 0."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC4",
+      "text": "Existing report formulas, values, images, row fitting, and transcript/scoring logic remain unchanged except for red fill removal.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "artifact",
+          "path": ".agent/tasks/remove-red-workbook-highlights/raw/build.txt",
+          "summary": "Implementation is scoped to red solid fill removal before generated workbook save."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC5",
+      "text": "Focused checks prove Python syntax, red-fill detection/removal, generated workbook styling, and diff hygiene.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/remove-red-workbook-highlights/raw/lint.txt",
+          "command": "python -m py_compile template3_report.py",
+          "exit_code": 0,
+          "summary": "Python syntax check passed."
+        },
+        {
+          "type": "command",
+          "path": ".agent/tasks/remove-red-workbook-highlights/raw/lint.txt",
+          "command": "git diff --check -- template3_report.py .agent\\tasks\\remove-red-workbook-highlights\\spec.md",
+          "exit_code": 0,
+          "summary": "No whitespace errors were reported."
+        }
+      ],
+      "gaps": []
+    }
+  ],
+  "changed_files": [
+    "template3_report.py",
+    ".agent/tasks/remove-red-workbook-highlights/spec.md",
+    ".agent/tasks/remove-red-workbook-highlights/evidence.md",
+    ".agent/tasks/remove-red-workbook-highlights/evidence.json",
+    ".agent/tasks/remove-red-workbook-highlights/raw/build.txt",
+    ".agent/tasks/remove-red-workbook-highlights/raw/test-unit.txt",
+    ".agent/tasks/remove-red-workbook-highlights/raw/test-integration.txt",
+    ".agent/tasks/remove-red-workbook-highlights/raw/lint.txt"
+  ],
+  "commands_for_fresh_verifier": [
+    "python -m py_compile template3_report.py",
+    "Run red-fill helper check for _remove_red_fills.",
+    "Generate a Template_3 workbook and inspect every worksheet for solid red fills.",
+    "Confirm non-red header fills remain in generated workbook.",
+    "git diff --check -- template3_report.py .agent\\tasks\\remove-red-workbook-highlights\\spec.md .agent\\tasks\\remove-red-workbook-highlights\\evidence.md .agent\\tasks\\remove-red-workbook-highlights\\evidence.json"
+  ],
+  "known_gaps": [
+    "Existing .xlsx files are not modified; reports must be regenerated.",
+    "Excel/LibreOffice rendering was not opened manually; workbook styles were inspected structurally with openpyxl."
+  ]
+}

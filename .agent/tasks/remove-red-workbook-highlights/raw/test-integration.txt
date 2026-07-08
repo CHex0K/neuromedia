@@ -1,0 +1,18 @@
+Command:
+Synthetic Template_3 workbook generation from `Template_3_with_frames.xlsx`,
+`decoded_terms.csv`, and `tribe_segments.tsv`, followed by full workbook style
+inspection with openpyxl.
+
+Exit code: 0
+
+Output:
+template red count 5
+generated red count 0
+preserved fills FFE2F0D9 FFD9EAF7
+
+Meaning:
+- The source template still has red fills, proving it was not edited.
+- The generated workbook has zero solid red fills.
+- Non-red header fills remain in generated workbook:
+  - `2_FRAME_MARKUP!C3 = FFE2F0D9`
+  - `1_RAW_CORRELATIONS!A2 = FFD9EAF7`

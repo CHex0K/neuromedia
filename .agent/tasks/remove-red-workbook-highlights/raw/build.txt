@@ -1,0 +1,10 @@
+Implementation:
+- Added `RED_FILL_RGBS` and `_is_red_fill()` in `template3_report.py`.
+- Added `_remove_red_fills(wb)` to remove only solid red fills from generated
+  workbooks.
+- Called `_remove_red_fills(wb)` immediately before saving the generated workbook.
+
+Scope:
+- Source `Template_3_with_frames.xlsx` is not edited.
+- Non-red fills, borders, fonts, formulas, values, images, transcript logic, and
+  scoring logic are unchanged.

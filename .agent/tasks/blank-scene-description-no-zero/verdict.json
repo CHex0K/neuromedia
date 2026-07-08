@@ -1,0 +1,47 @@
+{
+  "task_id": "blank-scene-description-no-zero",
+  "overall_verdict": "PASS",
+  "criteria": [
+    {
+      "id": "AC1",
+      "status": "PASS",
+      "reason": "Generated scene_description formulas now use IF(raw=\"\",\"\",raw), so blank raw cells render as blank strings instead of Excel 0."
+    },
+    {
+      "id": "AC2",
+      "status": "PASS",
+      "reason": "Rows with transcript text still reference 1_RAW_CORRELATIONS!C* through the blank-safe formula."
+    },
+    {
+      "id": "AC3",
+      "status": "PASS",
+      "reason": "Short and extended synthetic workbooks prove the formula rewrite applies to the generated data-row range."
+    },
+    {
+      "id": "AC4",
+      "status": "PASS",
+      "reason": "The implementation is scoped to 2_FRAME_MARKUP scene-description formulas and does not touch scoring or transcript generation."
+    },
+    {
+      "id": "AC5",
+      "status": "PASS",
+      "reason": "Syntax, helper, integration, and diff hygiene checks passed."
+    }
+  ],
+  "commands_run": [
+    "python -m py_compile template3_report.py",
+    "Unit formula rewrite check via python stdin",
+    "Synthetic short workbook generation with blank/populated transcript segments via python stdin",
+    "Synthetic extended workbook generation with 21 rows via python stdin",
+    "git diff --check -- template3_report.py .agent\\tasks\\blank-scene-description-no-zero\\spec.md"
+  ],
+  "artifacts_used": [
+    ".agent/tasks/blank-scene-description-no-zero/spec.md",
+    ".agent/tasks/blank-scene-description-no-zero/evidence.md",
+    ".agent/tasks/blank-scene-description-no-zero/evidence.json",
+    ".agent/tasks/blank-scene-description-no-zero/raw/build.txt",
+    ".agent/tasks/blank-scene-description-no-zero/raw/test-unit.txt",
+    ".agent/tasks/blank-scene-description-no-zero/raw/test-integration.txt",
+    ".agent/tasks/blank-scene-description-no-zero/raw/lint.txt"
+  ]
+}

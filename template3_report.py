@@ -41,9 +41,11 @@ MARKUP_FLAG_COLS = range(5, 11)  # HOOK/BRAND/PRODUCT/OFFER/CTA/LOGO
 FINALE_WINDOW_SECONDS = 3.0
 FINALE_AGGREGATE_ROW = 8
 FIRST_AGGREGATE_VALUE_COL = 3  # column C on 4_WINDOW_AGGREGATES
+SCENE_DESCRIPTION_COL = 3
 SCENE_SELECTED_TEXT_COLUMNS = ["text", "word", "token", "corrected", "corrected_text"]
 SCENE_ORIGINAL_TEXT_COLUMNS = ["original_text", "source_text", "raw_text"]
 RUSSIAN_LANGUAGE_VALUES = {"ru", "rus", "russian", "русский"}
+RED_FILL_RGBS = {"FFFF0000", "00FF0000", "FF0000"}
 
 FramePngProvider = Callable[[Optional[float], Optional[float]], Optional[bytes]]
 
@@ -217,6 +219,26 @@ def _reset_data_fills(ws, start_row: int, end_row: int) -> None:
                 cell.fill = blank
 
 
+def _is_red_fill(fill) -> bool:
+    if fill is None or fill.patternType != "solid":
+        return False
+    rgb = str(getattr(fill.fgColor, "rgb", "") or "").upper()
+    return rgb in RED_FILL_RGBS
+
+
+def _remove_red_fills(wb) -> None:
+    """Remove red highlights from generated workbooks only."""
+
+    from openpyxl.styles import PatternFill
+
+    blank = PatternFill(fill_type=None)
+    for ws in wb.worksheets:
+        for row in ws.iter_rows():
+            for cell in row:
+                if _is_red_fill(cell.fill):
+                    cell.fill = blank
+
+
 def _extend_formula_rows(ws, template_row: int, first_new_row: int, last_new_row: int) -> None:
     """Copy the template's formula/static row down to new rows, shifting refs."""
 
@@ -330,6 +352,16 @@ def _rewrite_finale_window(ws, rows: list[dict]) -> None:
         )
 
 
+def _rewrite_markup_scene_formulas(ws, last_data_row: int) -> None:
+    """Keep blank scene descriptions blank instead of showing Excel's 0."""
+
+    if last_data_row < DATA_START_ROW:
+        return
+    for row in range(DATA_START_ROW, last_data_row + 1):
+        raw_ref = f"'1_RAW_CORRELATIONS'!C{row}"
+        ws.cell(row, SCENE_DESCRIPTION_COL).value = f'=IF({raw_ref}="","",{raw_ref})'
+
+
 def build_template3_workbook(
     *,
     template_path: Path,
@@ -394,6 +426,7 @@ def build_template3_workbook(
         _widen_bottom_anchor(ws_idx, last_data_row)
         _widen_bottom_anchor(ws_agg, last_data_row)
 
+    _rewrite_markup_scene_formulas(ws_mark, last_data_row)
     _rewrite_finale_window(ws_agg, rows)
 
     # force Excel/LibreOffice to recompute every formula when the file is opened
@@ -401,6 +434,8 @@ def build_template3_workbook(
         wb.calculation.fullCalcOnLoad = True
     except Exception:  # pragma: no cover - older openpyxl
         pass
+
+    _remove_red_fills(wb)
 
     output_xlsx = Path(output_xlsx)
     output_xlsx.parent.mkdir(parents=True, exist_ok=True)

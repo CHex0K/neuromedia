@@ -1,0 +1,113 @@
+{
+  "task_id": "blank-scene-description-no-zero",
+  "overall_status": "PASS",
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "text": "Generated Template_3 workbooks rewrite 2_FRAME_MARKUP scene_description formulas so blank raw transcript cells render as blank strings, not Excel 0.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/blank-scene-description-no-zero/raw/test-unit.txt",
+          "command": "Formula rewrite helper check via python stdin.",
+          "exit_code": 0,
+          "summary": "Rows C4:C6 were rewritten to IF(raw=\"\",\"\",raw) formulas."
+        },
+        {
+          "type": "command",
+          "path": ".agent/tasks/blank-scene-description-no-zero/raw/test-integration.txt",
+          "command": "Synthetic workbook generation with blank transcript segments.",
+          "exit_code": 0,
+          "summary": "Generated 2_FRAME_MARKUP formulas use blank-safe IF references for blank raw scene_description cells."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC2",
+      "text": "Rows with transcript text still display the transcript text by referencing 1_RAW_CORRELATIONS!C*.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/blank-scene-description-no-zero/raw/test-integration.txt",
+          "command": "Synthetic workbook generation with one populated transcript segment.",
+          "exit_code": 0,
+          "summary": "1_RAW_CORRELATIONS!C5 contained transcript text and 2_FRAME_MARKUP!C5 referenced it through the IF formula."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC3",
+      "text": "The change applies to every generated data row, including reports with fewer or more than the template's default 20 rows.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/blank-scene-description-no-zero/raw/test-integration.txt",
+          "command": "Synthetic short and extended workbook generation.",
+          "exit_code": 0,
+          "summary": "Rows C4:C6 were rewritten for a short workbook, C7 remained cleared, and C24 was rewritten for a 21-row workbook."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC4",
+      "text": "Transcript generation, scoring, frame images, markup flags, and unrelated workbook formulas are unchanged.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "artifact",
+          "path": ".agent/tasks/blank-scene-description-no-zero/raw/build.txt",
+          "summary": "Implementation is scoped to Template_3 scene-description formulas after row fitting."
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "AC5",
+      "text": "Focused checks prove Python syntax, generated formula structure, workbook generation, and diff hygiene.",
+      "status": "PASS",
+      "proof": [
+        {
+          "type": "command",
+          "path": ".agent/tasks/blank-scene-description-no-zero/raw/lint.txt",
+          "command": "python -m py_compile template3_report.py",
+          "exit_code": 0,
+          "summary": "Python syntax check passed."
+        },
+        {
+          "type": "command",
+          "path": ".agent/tasks/blank-scene-description-no-zero/raw/lint.txt",
+          "command": "git diff --check -- template3_report.py .agent\\tasks\\blank-scene-description-no-zero\\spec.md",
+          "exit_code": 0,
+          "summary": "No whitespace errors were reported."
+        }
+      ],
+      "gaps": []
+    }
+  ],
+  "changed_files": [
+    "template3_report.py",
+    ".agent/tasks/blank-scene-description-no-zero/spec.md",
+    ".agent/tasks/blank-scene-description-no-zero/evidence.md",
+    ".agent/tasks/blank-scene-description-no-zero/evidence.json",
+    ".agent/tasks/blank-scene-description-no-zero/raw/build.txt",
+    ".agent/tasks/blank-scene-description-no-zero/raw/test-unit.txt",
+    ".agent/tasks/blank-scene-description-no-zero/raw/test-integration.txt",
+    ".agent/tasks/blank-scene-description-no-zero/raw/lint.txt"
+  ],
+  "commands_for_fresh_verifier": [
+    "python -m py_compile template3_report.py",
+    "Run formula rewrite helper check for _rewrite_markup_scene_formulas.",
+    "Generate a short Template_3 workbook with blank/populated transcript segments and inspect 2_FRAME_MARKUP!C4:C7.",
+    "Generate a 21-row Template_3 workbook and inspect 2_FRAME_MARKUP!C24.",
+    "git diff --check -- template3_report.py .agent\\tasks\\blank-scene-description-no-zero\\spec.md .agent\\tasks\\blank-scene-description-no-zero\\evidence.md .agent\\tasks\\blank-scene-description-no-zero\\evidence.json"
+  ],
+  "known_gaps": [
+    "Excel formula recalculation itself was not evaluated in desktop Excel/LibreOffice; generated formulas were inspected structurally."
+  ]
+}
